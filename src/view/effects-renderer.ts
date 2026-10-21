@@ -3,7 +3,7 @@
  * nothing about React or the DOM layout: it is given a canvas and a function
  * that reports where each key sits in canvas coordinates.
  */
-import { LightBarModel, RISE_SPEED, barAlpha, barSpan, pitchHue } from "./light-bars";
+import { LightBarModel, barAlpha, barSpan, pitchHue } from "./light-bars";
 
 export interface KeyAnchor {
   /** Horizontal centre of the key, in CSS pixels from the canvas's left. */
@@ -29,6 +29,8 @@ interface Spark {
 }
 
 const SPARKS_PER_PRESS = 8;
+/** Seconds a released bar takes to travel the full height, on any screen size. */
+const RISE_SECONDS = 2.4;
 const SPARK_GRAVITY = 380;
 
 function now(): number {
@@ -115,7 +117,7 @@ export class EffectsRenderer {
     this.lastFrame = t;
     this.stepSparks(dt);
     const anchors = this.getAnchors();
-    if (anchors) this.model.prune(t, anchors.originY);
+    if (anchors) this.model.prune(t, anchors.originY, anchors.originY / RISE_SECONDS);
     this.draw(t);
     // Keep animating only while something is on screen.
     this.raf = this.model.isEmpty && this.sparks.length === 0 ? 0 : requestAnimationFrame(this.frame);
@@ -127,12 +129,13 @@ export class EffectsRenderer {
     const anchors = this.getAnchors();
     if (!anchors) return;
     const maxHeight = anchors.originY;
+    const speed = maxHeight / RISE_SECONDS;
     ctx.globalCompositeOperation = "lighter";
 
     for (const bar of this.model.bars) {
       const key = anchors.keys.get(bar.midi);
       if (!key) continue;
-      const span = barSpan(bar, time, RISE_SPEED);
+      const span = barSpan(bar, time, speed);
       const alpha = barAlpha(span, maxHeight);
       if (alpha <= 0) continue;
       const top = anchors.originY - Math.min(span.top, maxHeight);
