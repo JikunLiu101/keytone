@@ -559,13 +559,12 @@ input[type="range"] {
 /* ---------- Frosted glass panel ---------- */
 
 /*
- * A glass sheet standing on the felt line behind the keys, leaning back about
- * 10° from upright. The keyboard body is tilted 26° as an artistic camera
- * angle, so "upright, leaning back 10°" on screen is a −16° turn relative to
- * the body (26° − 16° = 10° from the screen plane).
+ * A glass sheet standing upright on the felt line behind the keys. The body is
+ * tilted 26° away from the viewer, so turning the glass −26° relative to the
+ * body makes it parallel to the screen: it reads as truly upright.
  */
 .glass {
-  --glass-tilt: -16deg;
+  --glass-tilt: -26deg;
   position: absolute;
   left: 12px;
   right: 12px;

@@ -230,7 +230,7 @@ Agreed 2026-10-21.
 ### 9.1 Light-bar effect
 - **Glass panel**
   - A highly transparent, frosted glass panel stands on the felt line between the keys and the control strip.
-  - It leans back about 10° from upright, about 80° from the key surface.
+  - It looks truly upright in the picture: it is turned to face the viewer, parallel to the screen.
   - The LCD and speaker strip stay behind the glass and look soft and blurred through it.
 - **Bars**
   - Bars live inside the glass panel.
