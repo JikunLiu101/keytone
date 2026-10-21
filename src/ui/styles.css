@@ -324,6 +324,7 @@ input[type="range"] {
 /* ---------- Stage and 3D keyboard ---------- */
 
 .main {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -334,6 +335,7 @@ input[type="range"] {
 
 .stage {
   position: relative;
+  z-index: 1;
   perspective: 1000px;
   perspective-origin: 50% 0%;
 }
@@ -554,15 +556,38 @@ input[type="range"] {
   font-size: 0.85em;
 }
 
-.effects-layer {
+/* Screen-space light-bar canvas, behind the keyboard. */
+.effects-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 0;
   pointer-events: none;
 }
 
+/* 1px-high markers along the body's top edge, aligned with the keys. */
+.key-anchors {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.key-anchors > span {
+  position: absolute;
+  top: 0;
+  height: 1px;
+  left: calc(var(--x) * var(--white-w));
+  width: calc(var(--w) * var(--white-w));
+}
+
 .hint {
+  position: relative;
+  z-index: 1;
   margin: 34px 0 0;
   text-align: center;
   font-size: 12px;

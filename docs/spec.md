@@ -222,3 +222,49 @@ Design rules:
    - Rising light-bar effect
    - Touch input
    - Mobile layout
+
+## 9. Version 2 Spec
+
+Agreed 2026-10-21.
+
+### 9.1 Light-bar effect
+- **Bars**
+  - While a key is held, a glowing bar grows upward from the top of that key. The longer the key is held, the longer the bar.
+  - On release, the bar detaches, keeps rising at a steady speed, and fades out near the top of the screen.
+- **Sparks**: a few small sparks burst from the key top at the moment of the press.
+- **Colour by pitch**: the 12 pitch classes map to a rainbow, and the same note has the same colour in every octave.
+- **Sustain** does not lengthen a bar. Bars follow how long the finger holds the key, not how long the sound lasts.
+- **Speed** is fixed for now. A slider may come later.
+- **Effects switch** in the control panel:
+  - On by default.
+  - Off by default when the system has "reduce motion" (`prefers-reduced-motion`) turned on.
+  - Saved with the other settings.
+- **Rendering**
+  - Canvas 2D in screen space, above the keyboard.
+  - Bar x positions come from the on-screen keys' real positions, so they line up with the 3D-tilted keys.
+  - Drawing is driven by NoteHub events and never adds audio latency.
+
+### 9.2 Touch input
+- Multi-touch: several fingers can play a chord at once.
+- Sliding a finger across keys plays them in turn, the same as dragging the mouse.
+- Velocity uses the fixed velocity setting.
+
+### 9.3 Mobile layout
+- **Portrait**: a "please rotate your phone" prompt.
+- **Landscape**
+  - Shows about 2 octaves at a finger-friendly size.
+  - A thumbnail strip of all 38 keys above the keys; drag it to choose the visible range.
+- **On phones**
+  - The control panel starts collapsed.
+  - Computer-key letters and the keyboard hint are hidden.
+
+### 9.4 Deployment
+- GitHub Pages at `jikunliu101.github.io/keytone`.
+- Published automatically by GitHub Actions on every push to `main`.
+
+### 9.5 Order
+Each step gets its own commit.
+1. Light-bar effect
+2. GitHub Pages deploy
+3. Touch input
+4. Mobile layout

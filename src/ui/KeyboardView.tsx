@@ -98,8 +98,16 @@ export function KeyboardView() {
             );
           })}
         </div>
-        {/* Reserved for the v2 rising light-bar effect. */}
-        <canvas className="effects-layer" aria-hidden="true" />
+        {/* Invisible markers on the body's top edge; the light-bar layer measures them. */}
+        <div className="key-anchors" aria-hidden="true">
+          {layout.keys.map((key) => (
+            <span
+              key={key.midi}
+              data-anchor-midi={key.midi}
+              style={{ ["--x" as string]: key.x, ["--w" as string]: key.width }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
