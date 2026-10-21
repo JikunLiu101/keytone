@@ -28,8 +28,8 @@ const en = {
   "on": "On",
   "off": "Off",
   "hint.play": "Play",
-  "hint.octave": "hold for −1 / +1 octave",
-  "hint.sustain": "hold to sustain",
+  "hint.hold": "Hold {key} for {action}",
+  "hint.sustain": "sustain",
   "hint.mouse": "or click and drag on the keys",
 
   "bindings.title": "Key bindings",
@@ -52,6 +52,7 @@ const en = {
   "credits.intro": "Instrument samples come from these free libraries, loaded through smplr.",
   "credits.usedBy": "Used by",
   "credits.code": "Keytone code is MIT licensed.",
+  "credits.font": "Typeface: Barlow by Jeremy Tribby, SIL Open Font License 1.1.",
 
   "close": "Close",
 
@@ -121,8 +122,8 @@ const zh: Record<MessageKey, string> = {
   "on": "开",
   "off": "关",
   "hint.play": "弹奏",
-  "hint.octave": "按住降 / 升一个八度",
-  "hint.sustain": "按住延音",
+  "hint.hold": "按住 {key} {action}",
+  "hint.sustain": "延音",
   "hint.mouse": "也可以用鼠标点击或拖动琴键",
 
   "bindings.title": "按键设置",
@@ -145,6 +146,7 @@ const zh: Record<MessageKey, string> = {
   "credits.intro": "乐器样本来自以下免费音色库，通过 smplr 加载。",
   "credits.usedBy": "用于",
   "credits.code": "Keytone 代码采用 MIT 许可证。",
+  "credits.font": "字体：Barlow，作者 Jeremy Tribby，采用 SIL 开源字体许可 1.1。",
 
   "close": "关闭",
 

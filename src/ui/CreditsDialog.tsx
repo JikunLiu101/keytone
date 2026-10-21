@@ -30,6 +30,12 @@ export function CreditsDialog({ onClose }: { onClose: () => void }) {
         })}
       </ul>
       <p className="dialog-note">
+        {t("credits.font")}{" "}
+        <a href="https://github.com/jpt/barlow" target="_blank" rel="noreferrer">
+          Barlow
+        </a>
+      </p>
+      <p className="dialog-note">
         {t("credits.code")}{" "}
         <a href="https://github.com/JikunLiu101/keytone" target="_blank" rel="noreferrer">
           GitHub
