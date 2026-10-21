@@ -51,6 +51,8 @@ export class EffectsRenderer {
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly measure: () => AnchorSet | null,
+    /** Called with true when something starts drawing and false when the canvas goes idle. */
+    private readonly onActivity: (active: boolean) => void = () => {},
   ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D is not available");
@@ -95,6 +97,7 @@ export class EffectsRenderer {
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.clear();
+    this.onActivity(false);
   }
 
   private getAnchors(): AnchorSet | null {
@@ -109,6 +112,7 @@ export class EffectsRenderer {
     if (this.raf) return;
     this.lastFrame = now();
     this.raf = requestAnimationFrame(this.frame);
+    this.onActivity(true);
   }
 
   private frame = (): void => {
@@ -120,7 +124,12 @@ export class EffectsRenderer {
     if (anchors) this.model.prune(t, anchors.originY, anchors.originY / RISE_SECONDS);
     this.draw(t);
     // Keep animating only while something is on screen.
-    this.raf = this.model.isEmpty && this.sparks.length === 0 ? 0 : requestAnimationFrame(this.frame);
+    if (this.model.isEmpty && this.sparks.length === 0) {
+      this.raf = 0;
+      this.onActivity(false);
+    } else {
+      this.raf = requestAnimationFrame(this.frame);
+    }
   };
 
   private draw(time: number): void {

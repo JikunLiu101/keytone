@@ -8,14 +8,42 @@ import type { KeyboardLayout } from "../view/layout";
  * Light-bar canvas living on the glass panel. Because it sits in the glass's
  * own plane, the 3D transform gives the bars their perspective for free, and
  * key positions come straight from the layout (no screen measuring).
+ *
+ * The lit pane stops at the top of the LCD strip behind the glass, so the
+ * display stays readable, and the glass only lights up while bars are drawn.
  */
 export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
   const { effects } = useSettings();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Keep the lit pane clear of the LCD strip: measure how tall the strip
+  // looks through the glass and expose it as --lcd-clear (glass pixels).
+  useEffect(() => {
+    const glass = canvasRef.current?.closest<HTMLElement>(".glass");
+    const strip = document.querySelector<HTMLElement>(".keyboard-top");
+    if (!glass || !strip) return;
+    const update = () => {
+      const g = glass.getBoundingClientRect();
+      const s = strip.getBoundingClientRect();
+      const scale = g.height / (glass.clientHeight || 1);
+      const clear = Math.max(0, (g.bottom - s.top) / (scale || 1));
+      glass.style.setProperty("--lcd-clear", `${Math.round(clear)}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(strip);
+    observer.observe(glass);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!effects || !canvas) return;
+    const glass = canvas?.closest<HTMLElement>(".glass");
+    if (!effects || !canvas || !glass) return;
 
     // Positions in the canvas's own (untransformed) CSS pixels.
     const geometry = (): AnchorSet => {
@@ -27,7 +55,7 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
       return { originY: canvas.clientHeight, keys };
     };
 
-    const renderer = new EffectsRenderer(canvas, geometry);
+    const renderer = new EffectsRenderer(canvas, geometry, (active) => glass.classList.toggle("glass--lit", active));
     // The canvas is seen at an angle and slightly magnified, so render a bit sharper.
     const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight, (window.devicePixelRatio || 1) * 1.5);
     resize();

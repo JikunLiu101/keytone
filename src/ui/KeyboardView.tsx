@@ -101,8 +101,10 @@ export function KeyboardView() {
         </div>
         {/* Frosted glass panel standing behind the keys; light bars rise inside it. */}
         <div className="glass" aria-hidden="true">
-          <GlassEffects layout={layout} />
-          <div className="glass-frost" />
+          <div className="glass-pane">
+            <GlassEffects layout={layout} />
+            <div className="glass-frost" />
+          </div>
         </div>
         <div className="glass-rail" aria-hidden="true" />
       </div>
