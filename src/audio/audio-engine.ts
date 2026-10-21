@@ -1,22 +1,32 @@
+import { Reverb } from "smplr";
 import type { NoteEvent, NoteHub } from "../core/note-hub";
-import { INSTRUMENTS, type InstrumentBackend, type InstrumentDef } from "./instruments";
+import { findInstrument, type InstrumentBackend, type InstrumentDef } from "./instruments";
 
-export type EngineStatus =
-  | { state: "loading"; instrumentId: string }
-  | { state: "ready"; instrumentId: string }
-  | { state: "error"; instrumentId: string; message: string };
+export interface EngineStatus {
+  /** Instrument currently playing, or null before the first one loads. */
+  currentId: string | null;
+  /** Instrument being loaded, or null when idle. */
+  loadingId: string | null;
+  /** Last load failure, cleared on the next successful load. */
+  errorId: string | null;
+}
+
+/** Send level for the "light" reverb. */
+const REVERB_SEND = 0.22;
 
 /**
- * Owns the AudioContext, master volume and the active instrument, and plays
- * note events coming from the NoteHub.
+ * Owns the AudioContext, master volume, reverb and the active instrument, and
+ * plays note events coming from the NoteHub.
  */
 export class AudioEngine {
   readonly context: AudioContext;
   private readonly master: GainNode;
+  private readonly reverbSend: GainNode;
+  private reverbOn = false;
   private current: { def: InstrumentDef; backend: InstrumentBackend } | null = null;
   /** midi → function that stops the voice started for it. */
   private voices = new Map<number, () => void>();
-  private status: EngineStatus;
+  private status: EngineStatus = { currentId: null, loadingId: null, errorId: null };
   private listeners = new Set<() => void>();
   private loadToken = 0;
 
@@ -24,7 +34,13 @@ export class AudioEngine {
     this.context = new AudioContext({ latencyHint: "interactive" });
     this.master = this.context.createGain();
     this.master.connect(this.context.destination);
-    this.status = { state: "loading", instrumentId: "" };
+
+    // Reverb as a send: master → send gain → reverb (wet only) → destination.
+    this.reverbSend = this.context.createGain();
+    this.reverbSend.gain.value = 0;
+    this.master.connect(this.reverbSend);
+    this.setupReverb();
+
     hub.onNote(this.handleNote);
   }
 
@@ -46,24 +62,30 @@ export class AudioEngine {
     this.master.gain.setTargetAtTime(v * v, this.context.currentTime, 0.02);
   }
 
+  setReverb(on: boolean): void {
+    this.reverbOn = on;
+    this.reverbSend.gain.setTargetAtTime(on ? REVERB_SEND : 0, this.context.currentTime, 0.05);
+  }
+
   /**
    * Load an instrument. The previous one keeps playing until the new one is
    * ready, then it is swapped in.
    */
   async setInstrument(id: string): Promise<void> {
-    const def = INSTRUMENTS.find((i) => i.id === id);
+    const def = findInstrument(id);
     if (!def) throw new Error(`Unknown instrument: ${id}`);
+    if (this.current?.def.id === id && !this.status.loadingId) return;
     const token = ++this.loadToken;
-    this.setStatus({ state: "loading", instrumentId: id });
+    this.setStatus({ loadingId: id });
 
-    const backend = def.create(this.context, this.master);
+    let backend: InstrumentBackend | null = null;
     try {
+      backend = def.create(this.context, this.master);
       await backend.ready;
     } catch (err) {
-      backend.dispose();
-      if (token === this.loadToken) {
-        this.setStatus({ state: "error", instrumentId: id, message: String(err) });
-      }
+      console.error(`Failed to load instrument "${id}"`, err);
+      backend?.dispose();
+      if (token === this.loadToken) this.setStatus({ loadingId: null, errorId: id });
       return;
     }
     if (token !== this.loadToken) {
@@ -76,7 +98,22 @@ export class AudioEngine {
     for (const stop of this.voices.values()) stop();
     this.voices.clear();
     if (previous) setTimeout(() => previous.backend.dispose(), 2000);
-    this.setStatus({ state: "ready", instrumentId: id });
+    this.setStatus({ currentId: id, loadingId: null, errorId: null });
+  }
+
+  private async setupReverb(): Promise<void> {
+    try {
+      const reverb = new Reverb(this.context);
+      await reverb.ready();
+      reverb.getParam("dry")?.setValueAtTime(0, this.context.currentTime);
+      reverb.getParam("wet")?.setValueAtTime(1, this.context.currentTime);
+      this.reverbSend.connect(reverb.input);
+      reverb.connect(this.context.destination);
+      this.setReverb(this.reverbOn);
+    } catch (err) {
+      // Reverb needs AudioWorklet; without it we simply play dry.
+      console.warn("Reverb unavailable", err);
+    }
   }
 
   private handleNote = (event: NoteEvent): void => {
@@ -92,8 +129,8 @@ export class AudioEngine {
     }
   };
 
-  private setStatus(status: EngineStatus): void {
-    this.status = status;
+  private setStatus(patch: Partial<EngineStatus>): void {
+    this.status = { ...this.status, ...patch };
     for (const listener of this.listeners) listener();
   }
 }

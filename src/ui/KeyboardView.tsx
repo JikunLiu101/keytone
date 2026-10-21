@@ -2,6 +2,8 @@ import { useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react"
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
 import { engine, hub, keyboard, settings } from "../app/services";
+import { findInstrument } from "../audio/instruments";
+import { useT } from "../i18n/useT";
 
 const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
 
@@ -15,6 +17,10 @@ export function KeyboardView() {
   const sounding = useSyncExternalStore(hub.subscribe, hub.getSounding);
   const shift = useSyncExternalStore(keyboard.subscribe, keyboard.getOctaveShift);
   const labels = useMemo(() => computerKeyLabels(shift), [shift]);
+  const sustain = useSyncExternalStore(hub.subscribe, hub.getSustain);
+  const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
+  const instrument = status.currentId ? findInstrument(status.currentId) : undefined;
+  const t = useT();
   /** pointerId → note currently held by that pointer. */
   const pointers = useRef(new Map<number, number | null>());
 
@@ -23,7 +29,7 @@ export function KeyboardView() {
     const previous = pointers.current.get(pointerId) ?? null;
     if (previous === midi) return;
     if (previous !== null) hub.release(source, previous);
-    if (midi !== null) hub.press(source, midi, settings.velocity);
+    if (midi !== null) hub.press(source, midi, settings.get().velocity);
     pointers.current.set(pointerId, midi);
   };
 
@@ -46,7 +52,19 @@ export function KeyboardView() {
   return (
     <div className="stage">
       <div className="keyboard-body" style={{ ["--white-count" as string]: layout.whiteCount }}>
-        <div className="keyboard-rail" aria-hidden="true" />
+        <div className="keyboard-top" aria-hidden="true">
+          <div className="grille" />
+          <div className="lcd">
+            <span className="lcd-main">{instrument ? t(instrument.nameKey) : "—"}</span>
+            <span className="lcd-sub">
+              {status.loadingId ? t("status.loading") : `OCT ${shift > 0 ? `+${shift}` : shift}`}
+              {sustain ? " · SUS" : ""}
+            </span>
+          </div>
+          <span className="logo">KEYTONE</span>
+          <div className="grille" />
+        </div>
+        <div className="keyboard-felt" aria-hidden="true" />
         <div
           className="keys"
           role="group"
