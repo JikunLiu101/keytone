@@ -1,0 +1,121 @@
+import { describe, expect, it } from "vitest";
+import { NoteHub, type NoteEvent } from "./note-hub";
+import { KeyboardController } from "./keyboard-controller";
+import { DEFAULT_BINDINGS, type KeyBindings } from "./keymap";
+import { RANGE_HIGH, RANGE_LOW, noteName } from "./notes";
+
+function setup(bindings: KeyBindings = { ...DEFAULT_BINDINGS }) {
+  const hub = new NoteHub();
+  const events: string[] = [];
+  hub.onNote((e: NoteEvent) => events.push(`${e.type} ${noteName(e.midi)}`));
+  const keys = new KeyboardController(hub, { getBindings: () => bindings, getVelocity: () => 100 });
+  return { hub, keys, events };
+}
+
+describe("notes", () => {
+  it("covers C1–E6", () => {
+    expect(noteName(RANGE_LOW)).toBe("C1");
+    expect(noteName(RANGE_HIGH)).toBe("E6");
+  });
+});
+
+describe("KeyboardController", () => {
+  it("maps the bottom row to C3–E4", () => {
+    const { keys, events } = setup();
+    for (const code of ["KeyZ", "KeyS", "KeyM", "Comma", "KeyL", "Period", "Semicolon", "Slash"]) {
+      keys.keyDown(code);
+    }
+    expect(events).toEqual(["on C3", "on C#3", "on B3", "on C4", "on C#4", "on D4", "on D#4", "on E4"]);
+  });
+
+  it("ignores unmapped keys and auto-repeat", () => {
+    const { keys, events } = setup();
+    expect(keys.keyDown("KeyQ")).toBe(false);
+    keys.keyDown("KeyZ");
+    keys.keyDown("KeyZ", true);
+    expect(events).toEqual(["on C3"]);
+  });
+
+  it("shifts octaves only while the octave key is held", () => {
+    const { keys, events } = setup();
+    keys.keyDown("ShiftRight");
+    keys.keyDown("KeyZ");
+    keys.keyUp("ShiftRight");
+    keys.keyDown("KeyX");
+    expect(events).toEqual(["on C4", "on D3"]);
+  });
+
+  it("keeps a note's pitch fixed after the octave changes", () => {
+    const { keys, events } = setup();
+    keys.keyDown("KeyZ");
+    keys.keyDown("ShiftLeft");
+    keys.keyUp("KeyZ");
+    expect(events).toEqual(["on C3", "off C3"]);
+  });
+
+  it("cancels left and right Shift, and clamps to ±2", () => {
+    const bindings = { ...DEFAULT_BINDINGS, octaveUp2: "Digit2" };
+    const { keys } = setup(bindings);
+    keys.keyDown("ShiftLeft");
+    keys.keyDown("ShiftRight");
+    expect(keys.getOctaveShift()).toBe(0);
+    keys.keyUp("ShiftLeft");
+    keys.keyDown("Digit2");
+    expect(keys.getOctaveShift()).toBe(2);
+    keys.keyUp("ShiftRight");
+    expect(keys.getOctaveShift()).toBe(2);
+  });
+
+  it("releases an octave key even if bindings changed while it was held", () => {
+    const bindings: KeyBindings = { ...DEFAULT_BINDINGS };
+    const { keys } = setup(bindings);
+    keys.keyDown("ShiftRight");
+    bindings.octaveUp1 = "Digit1";
+    keys.keyUp("ShiftRight");
+    expect(keys.getOctaveShift()).toBe(0);
+  });
+
+  it("reset releases everything", () => {
+    const { keys, hub, events } = setup();
+    keys.keyDown("Space");
+    keys.keyDown("KeyZ");
+    keys.keyDown("ShiftRight");
+    keys.reset();
+    expect(keys.getOctaveShift()).toBe(0);
+    expect(hub.getSounding().size).toBe(0);
+    expect(events).toEqual(["on C3", "off C3"]);
+  });
+});
+
+describe("NoteHub sustain", () => {
+  it("defers note-off until the pedal is released", () => {
+    const { keys, events } = setup();
+    keys.keyDown("Space");
+    keys.keyDown("KeyZ");
+    keys.keyUp("KeyZ");
+    expect(events).toEqual(["on C3"]);
+    keys.keyUp("Space");
+    expect(events).toEqual(["on C3", "off C3"]);
+  });
+
+  it("re-striking a sustained note restarts it", () => {
+    const { keys, events } = setup();
+    keys.keyDown("Space");
+    keys.keyDown("KeyZ");
+    keys.keyUp("KeyZ");
+    keys.keyDown("KeyZ");
+    expect(events).toEqual(["on C3", "off C3", "on C3"]);
+  });
+
+  it("keeps a note held by another source sounding", () => {
+    const hub = new NoteHub();
+    const events: string[] = [];
+    hub.onNote((e) => events.push(e.type));
+    hub.press("key:KeyZ", 48, 100);
+    hub.press("pointer:1", 48, 100);
+    hub.release("key:KeyZ", 48);
+    expect(events).toEqual(["on"]);
+    hub.release("pointer:1", 48);
+    expect(events).toEqual(["on", "off"]);
+  });
+});

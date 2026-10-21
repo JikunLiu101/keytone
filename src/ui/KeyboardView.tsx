@@ -1,0 +1,88 @@
+import { useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
+import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
+import { buildLayout, computerKeyLabels } from "../view/layout";
+import { engine, hub, keyboard, settings } from "../app/services";
+
+const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
+
+/** Find the key under a screen point. Hit-testing respects the 3D transform. */
+function midiAt(x: number, y: number): number | null {
+  const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-midi]");
+  return el ? Number(el.dataset.midi) : null;
+}
+
+export function KeyboardView() {
+  const sounding = useSyncExternalStore(hub.subscribe, hub.getSounding);
+  const shift = useSyncExternalStore(keyboard.subscribe, keyboard.getOctaveShift);
+  const labels = useMemo(() => computerKeyLabels(shift), [shift]);
+  /** pointerId → note currently held by that pointer. */
+  const pointers = useRef(new Map<number, number | null>());
+
+  const moveTo = (pointerId: number, midi: number | null) => {
+    const source = `pointer:${pointerId}`;
+    const previous = pointers.current.get(pointerId) ?? null;
+    if (previous === midi) return;
+    if (previous !== null) hub.release(source, previous);
+    if (midi !== null) hub.press(source, midi, settings.velocity);
+    pointers.current.set(pointerId, midi);
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    engine.unlock();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    moveTo(e.pointerId, midiAt(e.clientX, e.clientY));
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    moveTo(e.pointerId, midiAt(e.clientX, e.clientY));
+  };
+  const onPointerEnd = (e: PointerEvent<HTMLDivElement>) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    moveTo(e.pointerId, null);
+    pointers.current.delete(e.pointerId);
+  };
+
+  return (
+    <div className="stage">
+      <div className="keyboard-body" style={{ ["--white-count" as string]: layout.whiteCount }}>
+        <div className="keyboard-rail" aria-hidden="true" />
+        <div
+          className="keys"
+          role="group"
+          aria-label="Keyboard"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerEnd}
+          onPointerCancel={onPointerEnd}
+          onLostPointerCapture={onPointerEnd}
+        >
+          {layout.keys.map((key) => {
+            const label = labels.get(key.midi);
+            const classes = [
+              "key",
+              key.black ? "key--black" : "key--white",
+              label ? "key--playable" : "",
+              sounding.has(key.midi) ? "key--down" : "",
+            ].join(" ");
+            return (
+              <div
+                key={key.midi}
+                className={classes}
+                data-midi={key.midi}
+                style={{ ["--x" as string]: key.x, ["--w" as string]: key.width }}
+              >
+                <span className="key-label">
+                  {label && <span className="key-label__computer">{label}</span>}
+                  {!key.black && <span className="key-label__note">{key.name}</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {/* Reserved for the v2 rising light-bar effect. */}
+        <canvas className="effects-layer" aria-hidden="true" />
+      </div>
+    </div>
+  );
+}
