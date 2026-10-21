@@ -39,6 +39,7 @@ const MODIFIER_CODES = /^(Control|Alt|Meta|OS)(Left|Right)$/;
 const RESERVED_CODES = new Set(["Escape", "Tab", "CapsLock", "ContextMenu"]);
 
 export function bindingError(code: string): BindingError | null {
+  if (!code || code === "Unidentified") return "reserved";
   if (NOTE_KEYS[code] !== undefined) return "noteKey";
   if (MODIFIER_CODES.test(code)) return "modifier";
   if (RESERVED_CODES.has(code) || /^F\d+$/.test(code)) return "reserved";

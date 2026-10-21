@@ -58,8 +58,8 @@ export function KeyboardView() {
           <div className="lcd">
             <span className="lcd-main">{instrument ? t(instrument.nameKey) : "—"}</span>
             <span className="lcd-sub">
-              {status.loadingId ? t("status.loading") : `OCT ${shift > 0 ? `+${shift}` : shift}`}
-              {sustain ? " · SUS" : ""}
+              {status.loadingId ? t("status.loading") : `${t("lcd.octave")} ${shift > 0 ? `+${shift}` : shift}`}
+              {sustain ? ` · ${t("lcd.sustain")}` : ""}
             </span>
           </div>
           <span className="logo">KEYTONE</span>
@@ -69,7 +69,7 @@ export function KeyboardView() {
         <div
           className="keys"
           role="group"
-          aria-label="Keyboard"
+          aria-label={t("keys.label")}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerEnd}

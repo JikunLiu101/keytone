@@ -3,6 +3,7 @@ import { engine, hub, keyboard, settings } from "../app/services";
 import { INSTRUMENTS, findInstrument } from "../audio/instruments";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
+import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 
 interface ControlPanelProps {
   onOpenBindings: () => void;
@@ -18,7 +19,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
 
   const current = findInstrument(status.currentId ?? s.instrumentId);
   const indicators = (
-    <div className="indicators">
+    <div className="indicators" aria-live="polite">
       <span className={`indicator ${shift !== 0 ? "indicator--on" : ""}`}>
         {t("panel.octave")} {shift > 0 ? `+${shift}` : shift}
       </span>
@@ -49,7 +50,8 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
         </span>
         {indicators}
         <button className="button button--ghost" onClick={() => settings.set({ panelCollapsed: false })}>
-          {t("panel.expand")} ▾
+          {t("panel.expand")}
+          <ChevronDownIcon />
         </button>
       </header>
     );
@@ -71,7 +73,8 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
           </button>
           {languageToggle}
           <button className="button button--ghost" onClick={() => settings.set({ panelCollapsed: true })}>
-            {t("panel.collapse")} ▴
+            {t("panel.collapse")}
+            <ChevronUpIcon />
           </button>
         </div>
       </div>
@@ -94,8 +97,9 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
               ].join(" ")}
               onClick={() => {
                 engine.unlock();
-                if (inst.id === s.instrumentId && failed) void engine.setInstrument(inst.id);
-                else settings.set({ instrumentId: inst.id });
+                // Re-selecting a failed instrument retries it; otherwise switch.
+                if (failed) void engine.setInstrument(inst.id);
+                settings.set({ instrumentId: inst.id });
               }}
             >
               {t(inst.nameKey)}
@@ -104,7 +108,14 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
           );
         })}
       </div>
-      {status.errorId && <p className="panel-error">{t("status.error")}</p>}
+      {status.errorId && (
+        <div className="panel-error" role="alert">
+          <span>{t("status.error").replace("{name}", t(findInstrument(status.errorId)?.nameKey ?? "inst.grandPiano"))}</span>
+          <button className="button" onClick={() => status.errorId && void engine.setInstrument(status.errorId)}>
+            {t("status.retry")}
+          </button>
+        </div>
+      )}
 
       <div className="panel-row panel-row--controls">
         <label className="control">
