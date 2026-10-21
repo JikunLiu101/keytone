@@ -594,7 +594,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.4em;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.55);
 }
 
 /* Red felt strip behind the keys. */
@@ -701,7 +701,7 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 
 /* Note names are secondary but stay readable (≥3:1). */
 .key-label__note {
-  color: #858a93;
+  color: #6f747d; /* ≥3:1 even on the darker bottom of the key gradient */
   font-size: clamp(11px, calc(var(--white-w) * 0.27), 12px);
   font-weight: 500;
 }
@@ -846,20 +846,45 @@ kbd {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(5, 6, 8, 0.6);
-  backdrop-filter: blur(3px);
+  background: rgba(5, 6, 8, 0.55);
+  animation: backdrop-in 160ms ease-out;
 }
 
 .dialog {
   width: min(520px, 100%);
   max-height: calc(100vh - 32px);
   overflow: auto;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: #1b1d22;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: linear-gradient(180deg, var(--metal-hi) 0%, var(--metal) 40%, var(--metal-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 30px 80px rgba(0, 0, 0, 0.6);
   outline: none;
   user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: #4a4e57 transparent;
+  animation: dialog-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-backdrop,
+  .dialog {
+    animation: none;
+  }
 }
 
 .dialog-header {

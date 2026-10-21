@@ -44,7 +44,19 @@ export function App() {
     if (dialog) keyboard.reset();
   }, [dialog]);
 
-  const key = (code: string | null) => (code ? <kbd>{codeLabel(code)}</kbd> : null);
+  /** "Hold {key} for {action}" with the key rendered as a <kbd>. */
+  const hold = (code: string | null, action: string) => {
+    if (!code) return null;
+    const [before, after] = t("hint.hold").replace("{action}", action).split("{key}");
+    return (
+      <>
+        {" · "}
+        {before}
+        <kbd>{codeLabel(code)}</kbd>
+        {after}
+      </>
+    );
+  };
 
   return (
     <div className="app">
@@ -55,18 +67,9 @@ export function App() {
         <p className="hint">
           {t("hint.play")} <kbd>Z</kbd>–<kbd>/</kbd> · <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>H</kbd>{" "}
           <kbd>J</kbd> <kbd>L</kbd> <kbd>;</kbd>
-          {(bindings.octaveDown1 || bindings.octaveUp1) && (
-            <>
-              {" · "}
-              {key(bindings.octaveDown1)} {key(bindings.octaveUp1)} {t("hint.octave")}
-            </>
-          )}
-          {bindings.sustain && (
-            <>
-              {" · "}
-              {key(bindings.sustain)} {t("hint.sustain")}
-            </>
-          )}
+          {hold(bindings.octaveDown1, t("bindings.octaveDown1"))}
+          {hold(bindings.octaveUp1, t("bindings.octaveUp1"))}
+          {hold(bindings.sustain, t("hint.sustain"))}
           {" · "}
           {t("hint.mouse")}
         </p>
