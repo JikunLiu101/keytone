@@ -228,9 +228,14 @@ Design rules:
 Agreed 2026-10-21.
 
 ### 9.1 Light-bar effect
+- **Glass panel**
+  - A highly transparent, frosted glass panel stands on the felt line between the keys and the control strip.
+  - It leans back about 10° from upright, about 80° from the key surface.
+  - The LCD and speaker strip stay behind the glass and look soft and blurred through it.
 - **Bars**
-  - While a key is held, a glowing bar grows upward from the top of that key. The longer the key is held, the longer the bar.
-  - On release, the bar detaches, keeps rising at a steady speed, and fades out near the top of the screen.
+  - Bars live inside the glass panel.
+  - While a key is held, a glowing bar grows upward from the bottom of the glass, above that key. The longer the key is held, the longer the bar.
+  - On release, the bar detaches, keeps rising at a steady speed, and fades out near the glass's top edge. Bars never leave the glass.
 - **Sparks**: a few small sparks burst from the key top at the moment of the press.
 - **Colour by pitch**: the 12 pitch classes map to a rainbow, and the same note has the same colour in every octave.
 - **Sustain** does not lengthen a bar. Bars follow how long the finger holds the key, not how long the sound lasts.
@@ -240,9 +245,10 @@ Agreed 2026-10-21.
   - Off by default when the system has "reduce motion" (`prefers-reduced-motion`) turned on.
   - Saved with the other settings.
 - **Rendering**
-  - Canvas 2D in screen space, above the keyboard.
-  - Bar x positions come from the on-screen keys' real positions, so they line up with the 3D-tilted keys.
-  - Drawing is driven by NoteHub events and never adds audio latency.
+  - Canvas 2D placed in the glass panel's own 3D plane, so the bars get perspective for free.
+  - Key x positions come straight from the renderer-independent layout.
+  - A released bar takes the same time to cross the glass on any screen size.
+  - Drawing is driven by NoteHub key events and never adds audio latency.
 
 ### 9.2 Touch input
 - Multi-touch: several fingers can play a chord at once.

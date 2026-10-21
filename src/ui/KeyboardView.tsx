@@ -4,6 +4,7 @@ import { buildLayout, computerKeyLabels } from "../view/layout";
 import { engine, hub, keyboard, settings } from "../app/services";
 import { findInstrument } from "../audio/instruments";
 import { useT } from "../i18n/useT";
+import { GlassEffects } from "./GlassEffects";
 
 const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
 
@@ -98,16 +99,12 @@ export function KeyboardView() {
             );
           })}
         </div>
-        {/* Invisible markers on the body's top edge; the light-bar layer measures them. */}
-        <div className="key-anchors" aria-hidden="true">
-          {layout.keys.map((key) => (
-            <span
-              key={key.midi}
-              data-anchor-midi={key.midi}
-              style={{ ["--x" as string]: key.x, ["--w" as string]: key.width }}
-            />
-          ))}
+        {/* Frosted glass panel standing behind the keys; light bars rise inside it. */}
+        <div className="glass" aria-hidden="true">
+          <GlassEffects layout={layout} />
+          <div className="glass-frost" />
         </div>
+        <div className="glass-rail" aria-hidden="true" />
       </div>
     </div>
   );

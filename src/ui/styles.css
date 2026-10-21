@@ -556,33 +556,67 @@ input[type="range"] {
   font-size: 0.85em;
 }
 
-/* Screen-space light-bar canvas, behind the keyboard. */
-.effects-canvas {
+/* ---------- Frosted glass panel ---------- */
+
+/*
+ * A glass sheet standing on the felt line behind the keys, leaning back about
+ * 10° from upright. The keyboard body is tilted 26° as an artistic camera
+ * angle, so "upright, leaning back 10°" on screen is a −16° turn relative to
+ * the body (26° − 16° = 10° from the screen plane).
+ */
+.glass {
+  --glass-tilt: -16deg;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(14px + var(--white-h) + 2px);
+  height: calc(var(--white-w) * 8);
+  transform-origin: 50% 100%;
+  transform: rotateX(var(--glass-tilt));
+  border-radius: 10px 10px 2px 2px;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(220, 235, 255, 0.025) 0%, rgba(220, 235, 255, 0.075) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 40px rgba(180, 210, 255, 0.06);
+}
+
+.glass-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+}
+
+/* Frosting: fine grain + soft sheen over the bars, so they glow through the glass. */
+.glass-frost {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.07) 0%, transparent 35%, transparent 70%, rgba(255, 255, 255, 0.04) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.09 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: screen;
+}
+
+/* Metal slot holding the glass on the felt line. */
+.glass-rail {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(14px + var(--white-h));
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #5a5e68, #2a2c32);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.12);
   pointer-events: none;
 }
 
-/* 1px-high markers along the body's top edge, aligned with the keys. */
-.key-anchors {
-  position: absolute;
-  top: 0;
-  left: 12px;
-  right: 12px;
-  height: 1px;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-.key-anchors > span {
-  position: absolute;
-  top: 0;
-  height: 1px;
-  left: calc(var(--x) * var(--white-w));
-  width: calc(var(--w) * var(--white-w));
+/* The control strip sits behind the glass, so it reads soft and dim. */
+.keyboard-top {
+  filter: blur(1px) saturate(0.85) brightness(0.8);
 }
 
 .hint {

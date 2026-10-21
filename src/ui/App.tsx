@@ -6,7 +6,6 @@ import { useSettings, useT } from "../i18n/useT";
 import { BindingsDialog } from "./BindingsDialog";
 import { ControlPanel } from "./ControlPanel";
 import { CreditsDialog } from "./CreditsDialog";
-import { EffectsLayer } from "./EffectsLayer";
 import { KeyboardView } from "./KeyboardView";
 
 type DialogName = "bindings" | "credits" | null;
@@ -39,7 +38,6 @@ export function App() {
       <ControlPanel onOpenBindings={() => setDialog("bindings")} onOpenCredits={() => setDialog("credits")} />
 
       <main className="main">
-        <EffectsLayer />
         <KeyboardView />
         <p className="hint">
           {t("hint.play")} <kbd>Z</kbd>–<kbd>/</kbd> · <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>H</kbd>{" "}
