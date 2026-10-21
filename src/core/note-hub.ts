@@ -11,6 +11,15 @@ export type NoteEvent =
 
 type Listener = (event: NoteEvent) => void;
 
+/**
+ * Physical key events: "down" when a note starts being held by any source,
+ * "up" when the last source lets go. Unlike NoteEvent, "up" is not delayed by
+ * the sustain pedal, so visuals can follow the player's fingers.
+ */
+export type KeyEvent = { type: "down" | "up"; midi: number };
+
+type KeyListener = (event: KeyEvent) => void;
+
 export class NoteHub {
   /** midi → ids of the sources currently holding it down. */
   private holders = new Map<number, Set<string>>();
@@ -18,6 +27,7 @@ export class NoteHub {
   private sustained = new Set<number>();
   private sustainOn = false;
   private listeners = new Set<Listener>();
+  private keyListeners = new Set<KeyListener>();
   private stateListeners = new Set<() => void>();
   private snapshot: ReadonlySet<number> = new Set();
 
@@ -25,6 +35,12 @@ export class NoteHub {
   onNote(listener: Listener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Subscribe to finger down/up events. Returns an unsubscribe function. */
+  onKey(listener: KeyListener): () => void {
+    this.keyListeners.add(listener);
+    return () => this.keyListeners.delete(listener);
   }
 
   /** Subscribe to changes of the sounding-notes set (for useSyncExternalStore). */
@@ -51,6 +67,7 @@ export class NoteHub {
     holders.add(source);
     if (wasHeld) return; // already sounding from another source
 
+    this.emitKey({ type: "down", midi });
     if (this.sustained.delete(midi)) {
       // Re-striking a sustained note restarts it, like a real piano.
       this.emit({ type: "off", midi });
@@ -64,6 +81,7 @@ export class NoteHub {
     if (!holders?.delete(source)) return;
     if (holders.size > 0) return;
     this.holders.delete(midi);
+    this.emitKey({ type: "up", midi });
 
     if (this.sustainOn) {
       this.sustained.add(midi);
@@ -89,7 +107,9 @@ export class NoteHub {
   /** Stop everything and drop the pedal, e.g. when the window loses focus. */
   releaseAll(): void {
     const sounding = [...this.snapshot];
+    const held = [...this.holders.keys()];
     this.holders.clear();
+    for (const midi of held) this.emitKey({ type: "up", midi });
     this.sustained.clear();
     this.sustainOn = false;
     for (const midi of sounding) this.emit({ type: "off", midi });
@@ -101,6 +121,10 @@ export class NoteHub {
 
   private emit(event: NoteEvent): void {
     for (const listener of this.listeners) listener(event);
+  }
+
+  private emitKey(event: KeyEvent): void {
+    for (const listener of this.keyListeners) listener(event);
   }
 
   private changed(): void {

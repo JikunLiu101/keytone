@@ -60,6 +60,12 @@ describe("sanitize", () => {
     expect(s.bindings.octaveDown1).toBeNull();
   });
 
+  it("turns effects off by default when reduced motion is requested", () => {
+    expect(defaultSettings("en", true).effects).toBe(false);
+    expect(defaultSettings("en", false).effects).toBe(true);
+    expect(sanitize({ effects: false }, defaults).effects).toBe(false);
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

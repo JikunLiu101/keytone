@@ -5,7 +5,12 @@ import { NoteHub } from "../core/note-hub";
 import { createStore } from "../core/store";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 
-export const settings = createStore<Settings>(loadSettings(navigator.languages ?? [navigator.language]));
+export const settings = createStore<Settings>(
+  loadSettings(
+    navigator.languages ?? [navigator.language],
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
+  ),
+);
 
 // Save right away so the first-visit language choice sticks, then on every change.
 saveSettings(settings.get());

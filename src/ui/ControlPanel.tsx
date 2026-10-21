@@ -142,6 +142,17 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
           </span>
           {t("panel.reverb")}
         </button>
+        <button
+          className={`toggle ${s.effects ? "toggle--on" : ""}`}
+          role="switch"
+          aria-checked={s.effects}
+          onClick={() => settings.set({ effects: !s.effects })}
+        >
+          <span className="toggle-track">
+            <span className="toggle-thumb" />
+          </span>
+          {t("panel.effects")}
+        </button>
         {indicators}
       </div>
     </header>

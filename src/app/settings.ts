@@ -10,6 +10,8 @@ export interface Settings {
   /** MIDI velocity 1–127 used for keyboard and mouse notes. */
   velocity: number;
   reverb: boolean;
+  /** Rising light-bar effect. */
+  effects: boolean;
   language: Language;
   bindings: KeyBindings;
   panelCollapsed: boolean;
@@ -17,12 +19,13 @@ export interface Settings {
 
 export const STORAGE_KEY = "keytone.settings.v1";
 
-export function defaultSettings(language: Language): Settings {
+export function defaultSettings(language: Language, reducedMotion = false): Settings {
   return {
     instrumentId: DEFAULT_INSTRUMENT_ID,
     volume: 0.8,
     velocity: 100,
     reverb: true,
+    effects: !reducedMotion,
     language,
     bindings: { ...DEFAULT_BINDINGS },
     panelCollapsed: false,
@@ -79,6 +82,7 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     volume: num(r.volume, 0, 1, defaults.volume),
     velocity: Math.round(num(r.velocity, 1, 127, defaults.velocity)),
     reverb: typeof r.reverb === "boolean" ? r.reverb : defaults.reverb,
+    effects: typeof r.effects === "boolean" ? r.effects : defaults.effects,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,
@@ -94,8 +98,8 @@ function storage(): globalThis.Storage | null {
   }
 }
 
-export function loadSettings(browserLanguages: readonly string[]): Settings {
-  const defaults = defaultSettings(detectLanguage(browserLanguages));
+export function loadSettings(browserLanguages: readonly string[], reducedMotion: boolean): Settings {
+  const defaults = defaultSettings(detectLanguage(browserLanguages), reducedMotion);
   try {
     const text = storage()?.getItem(STORAGE_KEY);
     return text ? sanitize(JSON.parse(text), defaults) : defaults;

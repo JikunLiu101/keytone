@@ -119,3 +119,40 @@ describe("NoteHub sustain", () => {
     expect(events).toEqual(["on", "off"]);
   });
 });
+
+describe("NoteHub key events", () => {
+  it("reports finger up immediately even while sustain holds the sound", () => {
+    const hub = new NoteHub();
+    const keys: string[] = [];
+    const notes: string[] = [];
+    hub.onKey((e) => keys.push(`${e.type} ${e.midi}`));
+    hub.onNote((e) => notes.push(`${e.type} ${e.midi}`));
+    hub.setSustain(true);
+    hub.press("a", 60, 100);
+    hub.release("a", 60);
+    expect(keys).toEqual(["down 60", "up 60"]);
+    expect(notes).toEqual(["on 60"]);
+    hub.press("a", 60, 100);
+    expect(keys).toEqual(["down 60", "up 60", "down 60"]);
+  });
+
+  it("emits one down/up pair when two sources hold the same note", () => {
+    const hub = new NoteHub();
+    const keys: string[] = [];
+    hub.onKey((e) => keys.push(e.type));
+    hub.press("a", 60, 100);
+    hub.press("b", 60, 100);
+    hub.release("a", 60);
+    hub.release("b", 60);
+    expect(keys).toEqual(["down", "up"]);
+  });
+
+  it("releaseAll lifts held keys", () => {
+    const hub = new NoteHub();
+    const keys: string[] = [];
+    hub.onKey((e) => keys.push(e.type));
+    hub.press("a", 60, 100);
+    hub.releaseAll();
+    expect(keys).toEqual(["down", "up"]);
+  });
+});
