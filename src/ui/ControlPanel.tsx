@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { engine, hub, keyboard, settings } from "../app/services";
-import { INSTRUMENTS, findInstrument } from "../audio/instruments";
+import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instruments";
+import { dynamicMark } from "../core/dynamics";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
@@ -79,34 +80,42 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
         </div>
       </div>
 
-      <div className="instrument-grid" role="radiogroup" aria-label={t("panel.instrument")}>
-        {INSTRUMENTS.map((inst) => {
-          const active = inst.id === status.currentId;
-          const loading = inst.id === status.loadingId;
-          const failed = inst.id === status.errorId;
-          return (
-            <button
-              key={inst.id}
-              role="radio"
-              aria-checked={active}
-              className={[
-                "instrument",
-                active ? "instrument--active" : "",
-                loading ? "instrument--loading" : "",
-                failed ? "instrument--error" : "",
-              ].join(" ")}
-              onClick={() => {
-                engine.unlock();
-                // Re-selecting a failed instrument retries it; otherwise switch.
-                if (failed) void engine.setInstrument(inst.id);
-                settings.set({ instrumentId: inst.id });
-              }}
-            >
-              {t(inst.nameKey)}
-              {loading && <span className="spinner" aria-label={t("status.loading")} />}
-            </button>
-          );
-        })}
+      <div className="families" role="radiogroup" aria-label={t("panel.instrument")}>
+        {FAMILIES.map((family) => (
+          <div key={family.id} className="family" role="group" aria-label={t(family.nameKey)}>
+            <span className="family-name" aria-hidden="true">
+              {t(family.nameKey)}
+            </span>
+            <div className="family-pads">
+              {INSTRUMENTS.filter((inst) => inst.family === family.id).map((inst) => {
+                const active = inst.id === status.currentId;
+                const loading = inst.id === status.loadingId;
+                const failed = inst.id === status.errorId;
+                const state = loading ? "loading" : failed ? "error" : active ? "on" : "off";
+                return (
+                  <button
+                    key={inst.id}
+                    role="radio"
+                    aria-checked={active}
+                    aria-busy={loading || undefined}
+                    aria-label={t(inst.nameKey)}
+                    title={t(inst.nameKey)}
+                    className={`pad pad--${state}`}
+                    onClick={() => {
+                      engine.unlock();
+                      // Re-selecting a failed instrument retries it; otherwise switch.
+                      if (failed) void engine.setInstrument(inst.id);
+                      settings.set({ instrumentId: inst.id });
+                    }}
+                  >
+                    <span className="led" aria-hidden="true" />
+                    {t(shortKey(inst))}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
       {status.errorId && (
         <div className="panel-error" role="alert">
@@ -118,7 +127,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
       )}
 
       <div className="panel-row panel-row--controls">
-        <label className="control">
+        <label className="fader">
           <span className="control-label">{t("panel.volume")}</span>
           <input
             type="range"
@@ -128,9 +137,9 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
             value={s.volume}
             onChange={(e) => settings.set({ volume: Number(e.target.value) })}
           />
-          <span className="control-value">{Math.round(s.volume * 100)}</span>
+          <span className="control-value">{Math.round(s.volume * 100)}%</span>
         </label>
-        <label className="control">
+        <label className="fader" title={t("velocity.help")}>
           <span className="control-label">{t("panel.velocity")}</span>
           <input
             type="range"
@@ -138,32 +147,34 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
             max={127}
             step={1}
             value={s.velocity}
+            aria-valuetext={`${dynamicMark(s.velocity)} ${s.velocity}`}
+            aria-description={t("velocity.help")}
             onChange={(e) => settings.set({ velocity: Number(e.target.value) })}
           />
-          <span className="control-value">{s.velocity}</span>
+          <span className="control-value">
+            <em className="dynamic">{dynamicMark(s.velocity)}</em> {s.velocity}
+          </span>
         </label>
-        <button
-          className={`toggle ${s.reverb ? "toggle--on" : ""}`}
-          role="switch"
-          aria-checked={s.reverb}
-          onClick={() => settings.set({ reverb: !s.reverb })}
-        >
-          <span className="toggle-track">
-            <span className="toggle-thumb" />
-          </span>
-          {t("panel.reverb")}
-        </button>
-        <button
-          className={`toggle ${s.effects ? "toggle--on" : ""}`}
-          role="switch"
-          aria-checked={s.effects}
-          onClick={() => settings.set({ effects: !s.effects })}
-        >
-          <span className="toggle-track">
-            <span className="toggle-thumb" />
-          </span>
-          {t("panel.effects")}
-        </button>
+        <div className="latches">
+          <button
+            className={`latch ${s.reverb ? "latch--on" : ""}`}
+            role="switch"
+            aria-checked={s.reverb}
+            onClick={() => settings.set({ reverb: !s.reverb })}
+          >
+            <span className="led" aria-hidden="true" />
+            {t("panel.reverb")}
+          </button>
+          <button
+            className={`latch ${s.effects ? "latch--on" : ""}`}
+            role="switch"
+            aria-checked={s.effects}
+            onClick={() => settings.set({ effects: !s.effects })}
+          >
+            <span className="led" aria-hidden="true" />
+            {t("panel.effects")}
+          </button>
+        </div>
         {indicators}
       </div>
     </header>

@@ -170,3 +170,15 @@ describe("NoteHub key events", () => {
     expect(keys).toEqual(["down", "up"]);
   });
 });
+
+import { dynamicMark } from "./dynamics";
+
+describe("dynamicMark", () => {
+  it("maps velocity to a dynamic marking", () => {
+    expect(dynamicMark(1)).toBe("ppp");
+    expect(dynamicMark(64)).toBe("mp");
+    expect(dynamicMark(80)).toBe("mf");
+    expect(dynamicMark(89)).toBe("f");
+    expect(dynamicMark(127)).toBe("fff");
+  });
+});
