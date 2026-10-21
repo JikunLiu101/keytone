@@ -65,6 +65,7 @@ export function BindingsDialog({ onClose }: { onClose: () => void }) {
               </kbd>
               <button
                 className="button"
+                aria-label={`${t("bindings.change")}: ${t(label)}`}
                 onClick={() => {
                   setError(null);
                   setCapturing(isCapturing ? null : action);
@@ -74,6 +75,7 @@ export function BindingsDialog({ onClose }: { onClose: () => void }) {
               </button>
               <button
                 className="button button--ghost"
+                aria-label={`${t("bindings.clear")}: ${t(label)}`}
                 disabled={!code}
                 onClick={() => settings.set({ bindings: withBinding(bindings, action, null) })}
               >
@@ -83,7 +85,11 @@ export function BindingsDialog({ onClose }: { onClose: () => void }) {
           );
         })}
       </ul>
-      {error && <p className="dialog-error">{t(ERROR_MESSAGES[error])}</p>}
+      {error && (
+        <p className="dialog-error" role="alert">
+          {t(ERROR_MESSAGES[error])}
+        </p>
+      )}
       <div className="dialog-actions">
         <button
           className="button button--ghost"

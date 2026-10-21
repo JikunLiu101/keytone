@@ -19,6 +19,8 @@ describe("bindings", () => {
     expect(bindingError("ControlLeft")).toBe("modifier");
     expect(bindingError("Escape")).toBe("reserved");
     expect(bindingError("F5")).toBe("reserved");
+    expect(bindingError("")).toBe("reserved");
+    expect(bindingError("Unidentified")).toBe("reserved");
     expect(bindingError("Digit1")).toBeNull();
     expect(bindingError("ShiftLeft")).toBeNull();
   });

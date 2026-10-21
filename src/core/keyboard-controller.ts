@@ -84,6 +84,19 @@ export class KeyboardController {
     return true;
   }
 
+  /**
+   * Release Shift-bound keys when the browser reports Shift is not held.
+   * Recovers from a missed keyup (e.g. both Shifts on Windows, or a release
+   * while focus was elsewhere), which would otherwise leave the octave stuck.
+   */
+  syncShift(shiftHeld: boolean, exceptCode?: string): void {
+    if (shiftHeld) return;
+    for (const code of ["ShiftLeft", "ShiftRight"]) {
+      if (code === exceptCode) continue;
+      if (this.heldOctaveKeys.has(code) || this.sustainKey === code) this.keyUp(code);
+    }
+  }
+
   /** Forget all held keys, e.g. when the window loses focus. */
   reset(): void {
     for (const [code, midi] of this.heldNotes) this.hub.release(sourceId(code), midi);

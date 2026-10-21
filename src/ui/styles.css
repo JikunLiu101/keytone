@@ -3,7 +3,7 @@
   --panel: rgba(24, 26, 31, 0.94);
   --line: rgba(255, 255, 255, 0.07);
   --text: #e8e9ec;
-  --text-dim: #8b8f99;
+  --text-dim: #a3a8b2;
   --accent: #6cc4ff;
   --accent-soft: rgba(108, 196, 255, 0.16);
   --warm: #ffb36b;
@@ -53,6 +53,9 @@ button {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 5px 12px;
   border-radius: 7px;
   border: 1px solid var(--line);
@@ -76,6 +79,8 @@ button {
 }
 
 .icon-button {
+  display: grid;
+  place-items: center;
   width: 28px;
   height: 28px;
   border: none;
@@ -218,8 +223,10 @@ button {
 }
 
 .panel-error {
-  margin: 0;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
   color: var(--danger);
 }
 
@@ -537,23 +544,25 @@ input[type="range"] {
   align-items: center;
   gap: 2px;
   padding-bottom: 8px;
-  font-size: clamp(8px, calc(var(--white-w) * 0.28), 12px);
+  font-size: clamp(11px, calc(var(--white-w) * 0.3), 13px);
   line-height: 1;
   pointer-events: none;
 }
 
 .key-label__computer {
   font-weight: 600;
-  color: rgba(40, 60, 90, 0.5);
+  color: #566070; /* ≥4.5:1 on the white keys */
 }
 
 .key--black .key-label__computer {
-  color: rgba(200, 215, 235, 0.42);
+  color: #97a1b0; /* ≥4.5:1 on the black keys */
 }
 
+/* Note names are secondary but stay readable (≥3:1). */
 .key-label__note {
-  color: rgba(0, 0, 0, 0.2);
-  font-size: 0.85em;
+  color: #858a93;
+  font-size: clamp(11px, calc(var(--white-w) * 0.27), 12px);
+  font-weight: 500;
 }
 
 /* ---------- Frosted glass panel ---------- */

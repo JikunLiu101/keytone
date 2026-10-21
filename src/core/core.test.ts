@@ -75,6 +75,20 @@ describe("KeyboardController", () => {
     expect(keys.getOctaveShift()).toBe(0);
   });
 
+  it("recovers a stuck Shift when the browser says Shift is up", () => {
+    const { keys, events } = setup();
+    keys.keyDown("ShiftRight");
+    // The keyup for ShiftRight was lost; the next key arrives with shiftKey = false.
+    keys.syncShift(false, "KeyZ");
+    keys.keyDown("KeyZ");
+    expect(keys.getOctaveShift()).toBe(0);
+    expect(events).toEqual(["on C3"]);
+    // While Shift really is held, nothing is released.
+    keys.keyDown("ShiftLeft");
+    keys.syncShift(true, "KeyX");
+    expect(keys.getOctaveShift()).toBe(-1);
+  });
+
   it("reset releases everything", () => {
     const { keys, hub, events } = setup();
     keys.keyDown("Space");

@@ -1,8 +1,13 @@
 import type { KeyboardController } from "../core/keyboard-controller";
 
-function isTyping(target: EventTarget | null): boolean {
+/** Input types that take typed text; sliders, checkboxes and buttons do not. */
+const TEXT_INPUT_TYPES = new Set(["text", "search", "email", "url", "tel", "password", "number"]);
+
+/** True when the key press is meant for a text field, not the instrument. */
+export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+  if (target.isContentEditable || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+  return target instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(target.type);
 }
 
 export interface KeyboardInputOptions {
@@ -17,13 +22,16 @@ export interface KeyboardInputOptions {
  */
 export function attachKeyboardInput(controller: KeyboardController, options: KeyboardInputOptions): () => void {
   const onKeyDown = (e: KeyboardEvent) => {
+    controller.syncShift(e.shiftKey, e.code);
     if (!options.isEnabled() || isTyping(e.target)) return;
     // Leave browser and OS shortcuts (Ctrl+R, Alt+Tab, Cmd+…) alone.
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     options.onGesture();
+    // preventDefault also stops Space from clicking a focused button or toggle.
     if (controller.keyDown(e.code, e.repeat)) e.preventDefault();
   };
   const onKeyUp = (e: KeyboardEvent) => {
+    controller.syncShift(e.shiftKey, e.code);
     if (controller.keyUp(e.code)) e.preventDefault();
   };
   const onBlur = () => controller.reset();
