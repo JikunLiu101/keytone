@@ -11,8 +11,18 @@
   --white-key: #f4f3ef;
   --white-key-shade: #d9d7d0;
   --black-key: #1b1c20;
+  /* Instrument materials, shared by the keyboard body and the control panel. */
+  --metal-hi: #30333b;
+  --metal: #23252b;
+  --metal-lo: #1a1b20;
+  --lcd-glow: #8fe3ff;
   color-scheme: dark;
-  font-family: "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: "Barlow", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+::selection {
+  background: rgba(108, 196, 255, 0.35);
+  color: #fff;
 }
 
 * {
@@ -104,14 +114,22 @@ button {
 
 /* ---------- Control panel ---------- */
 
+/*
+ * The panel is the instrument's own top plate: the same brushed-metal
+ * gradient as the keyboard body, panel buttons with indicator LEDs in the
+ * LCD's cyan, and faders instead of web sliders.
+ */
 .panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 12px 24px 14px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, var(--metal-hi) 0%, var(--metal) 55%, var(--metal-lo) 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 0 rgba(255, 255, 255, 0.04),
+    0 10px 30px rgba(0, 0, 0, 0.35);
   z-index: 5;
 }
 
@@ -126,7 +144,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 24px;
+  gap: 10px 28px;
 }
 
 .brand-block {
@@ -135,20 +153,23 @@ button {
   gap: 12px;
 }
 
+/* Same wordmark treatment as the KEYTONE logo on the instrument. */
 .brand {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .tagline {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
 }
 
 .panel-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin-left: auto;
 }
 
@@ -160,7 +181,7 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -168,57 +189,121 @@ button {
   margin-left: auto;
 }
 
-.instrument-grid {
+/* Instrument selector: families wrap as whole groups, never orphan a pad. */
+.families {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 10px 20px;
 }
 
-.instrument {
-  position: relative;
+.family {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.family-name {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.family-pads {
+  display: flex;
+  gap: 3px;
+}
+
+/* Panel button: raised cap with an indicator LED. */
+.pad,
+.latch {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
-  font-size: 12.5px;
+  gap: 7px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #3a3d46 0%, #2b2d34 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 2px 0 rgba(0, 0, 0, 0.45);
+  color: #d5d8de;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 100ms, border-color 100ms, color 100ms;
+  transition:
+    background 120ms,
+    transform 60ms,
+    box-shadow 60ms,
+    color 120ms;
 }
 
-.instrument:hover {
-  background: rgba(255, 255, 255, 0.09);
+.pad:hover,
+.latch:hover {
+  background: linear-gradient(180deg, #42454f 0%, #31343b 100%);
 }
 
-.instrument--active {
-  background: var(--accent-soft);
-  border-color: rgba(108, 196, 255, 0.55);
-  color: #d4eeff;
+.pad:active,
+.latch:active {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 0 rgba(0, 0, 0, 0.45);
 }
 
-.instrument--loading {
-  border-color: rgba(255, 179, 107, 0.5);
+.pad--on {
+  color: #fff;
+  background: linear-gradient(180deg, #2f3a45 0%, #232c35 100%);
 }
 
-.instrument--error {
-  border-color: rgba(255, 123, 123, 0.6);
+.pad--error {
   color: var(--danger);
 }
 
-.spinner {
-  width: 10px;
-  height: 10px;
+/* Indicator LED: dark when off, lit like the LCD when on. */
+.led {
+  flex: none;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 179, 107, 0.3);
-  border-top-color: var(--warm);
-  animation: spin 0.7s linear infinite;
+  background: #15161a;
+  box-shadow:
+    inset 0 1px 1px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition:
+    background 150ms,
+    box-shadow 150ms;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+.pad--on .led,
+.latch--on .led {
+  background: var(--lcd-glow);
+  box-shadow:
+    0 0 4px 1px rgba(143, 227, 255, 0.55),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.pad--loading .led {
+  background: var(--warm);
+  box-shadow:
+    0 0 4px 1px rgba(255, 179, 107, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+  animation: led-blink 0.9s ease-in-out infinite;
+}
+
+.pad--error .led {
+  background: var(--danger);
+  box-shadow:
+    0 0 4px 1px rgba(255, 123, 123, 0.5),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes led-blink {
+  50% {
+    opacity: 0.25;
   }
 }
 
@@ -226,76 +311,105 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--danger);
 }
 
-.control {
+/* Faders: a recessed groove with a metal cap. */
+.fader {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .control-label {
   color: var(--text-dim);
   font-size: 11px;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .control-value {
-  min-width: 2.2em;
+  min-width: 3.6em;
   font-variant-numeric: tabular-nums;
-  color: var(--text-dim);
+  color: #d5d8de;
+}
+
+/* Dynamic markings are set in italic serif, as on a score. */
+.dynamic {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--lcd-glow);
 }
 
 input[type="range"] {
-  width: 120px;
-  accent-color: var(--accent);
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  border: none;
-  background: none;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-dim);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 128px;
+  height: 22px;
+  margin: 0;
+  background: transparent;
   cursor: pointer;
 }
 
-.toggle-track {
-  position: relative;
-  width: 30px;
-  height: 17px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  transition: background 120ms;
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #121317;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: #cfd3da;
-  transition: transform 120ms;
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: #121317;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.toggle--on .toggle-track {
-  background: var(--accent);
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 20px;
+  margin-top: -8px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: linear-gradient(180deg, #e3e5ea 0%, #a9adb6 48%, #7d818a 52%, #c3c6cd 100%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
 }
 
-.toggle--on .toggle-thumb {
-  transform: translateX(13px);
-  background: #fff;
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: linear-gradient(180deg, #e3e5ea 0%, #a9adb6 48%, #7d818a 52%, #c3c6cd 100%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.5);
+}
+
+input[type="range"]:focus-visible {
+  outline: none;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.latches {
+  display: flex;
+  gap: 6px;
 }
 
 .indicators {
@@ -305,27 +419,44 @@ input[type="range"] {
 }
 
 .indicator {
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
-  transition: background 80ms, color 80ms;
+  transition:
+    background 80ms,
+    color 80ms;
 }
 
 .indicator--on {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: rgba(108, 196, 255, 0.14);
+  color: var(--lcd-glow);
 }
 
 .status {
-  font-size: 11px;
+  font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(255, 179, 107, 0.12);
   color: var(--warm);
   font-weight: 400;
+}
+
+/* Uppercase and tracking mean nothing in Chinese; drop them there. */
+:lang(zh) .family-name,
+:lang(zh) .control-label,
+:lang(zh) .tagline {
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pad--loading .led {
+    animation: none;
+  }
 }
 
 /* ---------- Stage and 3D keyboard ---------- */

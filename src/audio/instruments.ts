@@ -11,10 +11,22 @@ export interface InstrumentBackend {
 
 export type CreditId = "splendid" | "gregSullivan" | "vcsl" | "fluidR3";
 
+export type FamilyId = "pianos" | "organs" | "ensemble" | "plucked" | "synth";
+
+/** Instrument families, in display order, for grouping the selector. */
+export const FAMILIES: readonly { id: FamilyId; nameKey: MessageKey }[] = [
+  { id: "pianos", nameKey: "family.pianos" },
+  { id: "organs", nameKey: "family.organs" },
+  { id: "ensemble", nameKey: "family.ensemble" },
+  { id: "plucked", nameKey: "family.plucked" },
+  { id: "synth", nameKey: "family.synth" },
+];
+
 export interface InstrumentDef {
   id: string;
   /** i18n key of the display name. */
   nameKey: MessageKey;
+  family: FamilyId;
   credit: CreditId;
   create(context: AudioContext, destination: AudioNode): InstrumentBackend;
 }
@@ -78,10 +90,11 @@ function fromSmplr(inst: Smplr): InstrumentBackend {
   };
 }
 
-function soundfont(id: string, nameKey: MessageKey, gmName: string): InstrumentDef {
+function soundfont(id: string, nameKey: MessageKey, family: FamilyId, gmName: string): InstrumentDef {
   return {
     id,
     nameKey,
+    family,
     credit: "fluidR3",
     create: (context, destination) =>
       fromSmplr(
@@ -99,6 +112,7 @@ function electricPiano(id: string, nameKey: MessageKey, name: string, credit: Cr
   return {
     id,
     nameKey,
+    family: "pianos",
     credit,
     create: (context, destination) => fromSmplr(new ElectricPiano(context, { destination, instrument: name })),
   };
@@ -108,6 +122,7 @@ function mallet(id: string, nameKey: MessageKey, name: string): InstrumentDef {
   return {
     id,
     nameKey,
+    family: "plucked",
     credit: "vcsl",
     create: (context, destination) => fromSmplr(new Mallet(context, { destination, instrument: name })),
   };
@@ -117,6 +132,7 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
   {
     id: "grand-piano",
     nameKey: "inst.grandPiano",
+    family: "pianos",
     credit: "splendid",
     create: (context, destination) =>
       fromSmplr(
@@ -129,22 +145,27 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
   electricPiano("wurlitzer", "inst.wurlitzer", "WurlitzerEP200", "gregSullivan"),
   electricPiano("cp80", "inst.cp80", "CP80", "gregSullivan"),
   electricPiano("fm-piano", "inst.fmPiano", "TX81Z", "vcsl"),
-  soundfont("drawbar-organ", "inst.drawbarOrgan", "drawbar_organ"),
-  soundfont("church-organ", "inst.churchOrgan", "church_organ"),
-  soundfont("harpsichord", "inst.harpsichord", "harpsichord"),
-  soundfont("strings", "inst.strings", "string_ensemble_1"),
-  soundfont("choir", "inst.choir", "choir_aahs"),
-  soundfont("flute", "inst.flute", "flute"),
-  soundfont("brass", "inst.brass", "brass_section"),
-  soundfont("nylon-guitar", "inst.nylonGuitar", "acoustic_guitar_nylon"),
+  soundfont("drawbar-organ", "inst.drawbarOrgan", "organs", "drawbar_organ"),
+  soundfont("church-organ", "inst.churchOrgan", "organs", "church_organ"),
+  soundfont("harpsichord", "inst.harpsichord", "organs", "harpsichord"),
+  soundfont("strings", "inst.strings", "ensemble", "string_ensemble_1"),
+  soundfont("choir", "inst.choir", "ensemble", "choir_aahs"),
+  soundfont("flute", "inst.flute", "ensemble", "flute"),
+  soundfont("brass", "inst.brass", "ensemble", "brass_section"),
+  soundfont("nylon-guitar", "inst.nylonGuitar", "plucked", "acoustic_guitar_nylon"),
   mallet("vibraphone", "inst.vibraphone", "Vibraphone - Soft Mallets"),
   mallet("xylophone", "inst.xylophone", "Xylophone - Medium Mallets"),
-  soundfont("music-box", "inst.musicBox", "music_box"),
-  soundfont("synth-lead", "inst.synthLead", "lead_2_sawtooth"),
-  soundfont("synth-pad", "inst.synthPad", "pad_2_warm"),
+  soundfont("music-box", "inst.musicBox", "plucked", "music_box"),
+  soundfont("synth-lead", "inst.synthLead", "synth", "lead_2_sawtooth"),
+  soundfont("synth-pad", "inst.synthPad", "synth", "pad_2_warm"),
 ];
 
 export const DEFAULT_INSTRUMENT_ID = "grand-piano";
+
+/** Short label for a pad inside its family group, e.g. "inst.synthLead" -> "short.synthLead". */
+export function shortKey(def: InstrumentDef): MessageKey {
+  return def.nameKey.replace(/^inst\./, "short.") as MessageKey;
+}
 
 export function findInstrument(id: string): InstrumentDef | undefined {
   return INSTRUMENTS.find((i) => i.id === id);
