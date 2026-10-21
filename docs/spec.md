@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: requirements agreed (2026-10-21). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: M1 and M2 (version 1) implemented (2026-10-21). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 

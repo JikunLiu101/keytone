@@ -1,0 +1,113 @@
+/** User settings, their defaults, validation and localStorage persistence. */
+import { DEFAULT_INSTRUMENT_ID, findInstrument } from "../audio/instruments";
+import { DEFAULT_BINDINGS, NOTE_KEYS, type BindableAction, type KeyBindings } from "../core/keymap";
+import { detectLanguage, type Language } from "../i18n/strings";
+
+export interface Settings {
+  instrumentId: string;
+  /** Master volume 0–1. */
+  volume: number;
+  /** MIDI velocity 1–127 used for keyboard and mouse notes. */
+  velocity: number;
+  reverb: boolean;
+  language: Language;
+  bindings: KeyBindings;
+  panelCollapsed: boolean;
+}
+
+export const STORAGE_KEY = "keytone.settings.v1";
+
+export function defaultSettings(language: Language): Settings {
+  return {
+    instrumentId: DEFAULT_INSTRUMENT_ID,
+    volume: 0.8,
+    velocity: 100,
+    reverb: true,
+    language,
+    bindings: { ...DEFAULT_BINDINGS },
+    panelCollapsed: false,
+  };
+}
+
+/** Why a key can't be bound, or null if it can. */
+export type BindingError = "noteKey" | "modifier" | "reserved";
+
+const MODIFIER_CODES = /^(Control|Alt|Meta|OS)(Left|Right)$/;
+const RESERVED_CODES = new Set(["Escape", "Tab", "CapsLock", "ContextMenu"]);
+
+export function bindingError(code: string): BindingError | null {
+  if (NOTE_KEYS[code] !== undefined) return "noteKey";
+  if (MODIFIER_CODES.test(code)) return "modifier";
+  if (RESERVED_CODES.has(code) || /^F\d+$/.test(code)) return "reserved";
+  return null;
+}
+
+/** Bind a key to an action. A key bound elsewhere is moved, never duplicated. */
+export function withBinding(bindings: KeyBindings, action: BindableAction, code: string | null): KeyBindings {
+  const next = { ...bindings };
+  if (code !== null) {
+    for (const other of Object.keys(next) as BindableAction[]) {
+      if (next[other] === code) next[other] = null;
+    }
+  }
+  next[action] = code;
+  return next;
+}
+
+/** Merge stored data over defaults, dropping anything malformed. */
+export function sanitize(raw: unknown, defaults: Settings): Settings {
+  if (!raw || typeof raw !== "object") return defaults;
+  const r = raw as Record<string, unknown>;
+  const num = (v: unknown, min: number, max: number, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+
+  let bindings = { ...defaults.bindings };
+  if (r.bindings && typeof r.bindings === "object") {
+    const b = r.bindings as Record<string, unknown>;
+    for (const action of Object.keys(bindings) as BindableAction[]) {
+      const code = b[action];
+      if (code === null) bindings = withBinding(bindings, action, null);
+      else if (typeof code === "string" && bindingError(code) === null) {
+        bindings = withBinding(bindings, action, code);
+      }
+    }
+  }
+
+  return {
+    instrumentId:
+      typeof r.instrumentId === "string" && findInstrument(r.instrumentId) ? r.instrumentId : defaults.instrumentId,
+    volume: num(r.volume, 0, 1, defaults.volume),
+    velocity: Math.round(num(r.velocity, 1, 127, defaults.velocity)),
+    reverb: typeof r.reverb === "boolean" ? r.reverb : defaults.reverb,
+    language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
+    bindings,
+    panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,
+  };
+}
+
+/** localStorage can be missing or throw (private mode, blocked storage). */
+function storage(): globalThis.Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function loadSettings(browserLanguages: readonly string[]): Settings {
+  const defaults = defaultSettings(detectLanguage(browserLanguages));
+  try {
+    const text = storage()?.getItem(STORAGE_KEY);
+    return text ? sanitize(JSON.parse(text), defaults) : defaults;
+  } catch {
+    return defaults;
+  }
+}
+
+export function saveSettings(settings: Settings): void {
+  try {
+    storage()?.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch {
+    // Ignore: settings just won't persist.
+  }
+}
