@@ -16,6 +16,19 @@ export function App() {
   const [dialog, setDialog] = useState<DialogName>(null);
   const dialogRef = useRef<DialogName>(null);
   dialogRef.current = dialog;
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Expose the stage's height to CSS (--main-h) so the keyboard can size by
+  // height as well as width, and the glass can grow into the free space.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const observer = new ResizeObserver(([entry]) => {
+      main.style.setProperty("--main-h", `${Math.round(entry.contentRect.height)}px`);
+    });
+    observer.observe(main);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(
     () =>
@@ -37,7 +50,7 @@ export function App() {
     <div className="app">
       <ControlPanel onOpenBindings={() => setDialog("bindings")} onOpenCredits={() => setDialog("credits")} />
 
-      <main className="main">
+      <main className="main" ref={mainRef}>
         <KeyboardView />
         <p className="hint">
           {t("hint.play")} <kbd>Z</kbd>–<kbd>/</kbd> · <kbd>S</kbd> <kbd>D</kbd> <kbd>G</kbd> <kbd>H</kbd>{" "}
