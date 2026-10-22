@@ -19,7 +19,7 @@ export interface Settings {
 
 export const STORAGE_KEY = "keytone.settings.v1";
 
-export function defaultSettings(language: Language, reducedMotion = false): Settings {
+export function defaultSettings(language: Language, reducedMotion = false, smallTouchScreen = false): Settings {
   return {
     instrumentId: DEFAULT_INSTRUMENT_ID,
     volume: 0.8,
@@ -28,7 +28,8 @@ export function defaultSettings(language: Language, reducedMotion = false): Sett
     effects: !reducedMotion,
     language,
     bindings: { ...DEFAULT_BINDINGS },
-    panelCollapsed: false,
+    // Phones start with the panel tucked away so the keys get the room.
+    panelCollapsed: smallTouchScreen,
   };
 }
 
@@ -99,8 +100,12 @@ function storage(): globalThis.Storage | null {
   }
 }
 
-export function loadSettings(browserLanguages: readonly string[], reducedMotion: boolean): Settings {
-  const defaults = defaultSettings(detectLanguage(browserLanguages), reducedMotion);
+export function loadSettings(
+  browserLanguages: readonly string[],
+  reducedMotion: boolean,
+  smallTouchScreen = false,
+): Settings {
+  const defaults = defaultSettings(detectLanguage(browserLanguages), reducedMotion, smallTouchScreen);
   try {
     const text = storage()?.getItem(STORAGE_KEY);
     return text ? sanitize(JSON.parse(text), defaults) : defaults;

@@ -68,6 +68,11 @@ describe("sanitize", () => {
     expect(sanitize({ effects: false }, defaults).effects).toBe(false);
   });
 
+  it("starts with the panel collapsed on small touch screens", () => {
+    expect(defaultSettings("en", false, true).panelCollapsed).toBe(true);
+    expect(defaultSettings("en", false, false).panelCollapsed).toBe(false);
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

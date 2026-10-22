@@ -992,3 +992,163 @@ kbd {
 .credit-used {
   color: var(--text-dim);
 }
+
+/* ---------- Compact (touch) layout ---------- */
+
+/*
+ * On touch screens where the full keyboard would be too small for fingers,
+ * keys grow to finger size and the stage shows a window of the keyboard.
+ * The body slides under a fixed camera, so the visible part always looks
+ * front-on. A thumbnail strip above (.kb-nav) moves the window.
+ */
+.app[data-compact] .stage {
+  overflow-x: clip;
+}
+
+.app[data-compact] .keyboard-body {
+  /* Shorter keys and a lower minimum glass leave more height for key width. */
+  --white-w: min(calc((100vw - 72px) / 15), calc((var(--main-h, 360px) - 84px) / 6.8), 72px);
+  --white-h: calc(var(--white-w) * 4.4);
+  margin: 0;
+  transform: translateX(calc(var(--kb-scroll, 0) * var(--white-w) * -1)) rotateX(26deg);
+}
+
+.app[data-compact] .glass {
+  height: clamp(
+    calc(var(--white-w) * 2),
+    calc(var(--main-h, 360px) - var(--white-w) * 4 - 86px),
+    calc(var(--white-w) * 12)
+  );
+}
+
+/* A slimmer LCD strip and less bottom padding: phone height goes to the keys. */
+.app[data-compact] .keyboard-top {
+  height: calc(var(--white-w) + 10px);
+  min-height: 40px;
+  padding: 6px 6px 5px;
+}
+
+.app[data-compact] .main {
+  padding-bottom: 10px;
+}
+
+/* No computer keyboard on a phone: hide its letters, hints and octave/sustain readouts. */
+.app[data-compact] .hint,
+.app[data-compact] .key-label__computer,
+.app[data-compact] .indicators {
+  display: none;
+}
+
+/* Bigger touch targets for the panel. */
+.app[data-compact] .pad,
+.app[data-compact] .latch {
+  padding: 9px 12px 9px 10px;
+}
+
+/*
+ * The panel floats over the stage in both states, and the stage keeps a
+ * fixed top inset for the collapsed bar, so opening or closing the panel
+ * never resizes the keys.
+ */
+.app[data-compact] .panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: 88vh;
+  overflow-y: auto;
+  z-index: 30;
+}
+
+.app[data-compact] .main {
+  padding-top: 44px;
+}
+
+.kb-nav {
+  position: relative;
+  flex: none;
+  height: 34px;
+  margin: 10px 0 auto;
+  border-radius: 6px;
+  background: #0b0c0f;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.8),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  touch-action: none;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.kb-nav:active {
+  cursor: grabbing;
+}
+
+.kb-nav-key {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 0 0 2px 2px;
+  background: #d9d7d0;
+  box-shadow: inset -1px 0 0 rgba(0, 0, 0, 0.35);
+}
+
+.kb-nav-key--black {
+  bottom: 45%;
+  z-index: 1;
+  background: #1b1c20;
+  box-shadow: none;
+}
+
+.kb-nav-key--on {
+  background: var(--lcd-glow);
+}
+
+/* The frame dims everything outside the visible window. */
+.kb-nav-frame {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  border: 2px solid var(--lcd-glow);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 999px rgba(5, 6, 8, 0.55),
+    0 0 8px rgba(143, 227, 255, 0.45);
+  pointer-events: none;
+}
+
+.rotate-prompt {
+  display: none;
+}
+
+@media (pointer: coarse) and (orientation: portrait) and (max-width: 600px) {
+  .rotate-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px;
+    text-align: center;
+    background: radial-gradient(ellipse at 50% 120%, #262a33 0%, var(--bg) 62%);
+    color: var(--lcd-glow);
+  }
+
+  .rotate-title {
+    margin: 12px 0 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .rotate-body {
+    margin: 0;
+    max-width: 28ch;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--text-dim);
+  }
+}
