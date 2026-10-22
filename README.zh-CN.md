@@ -4,7 +4,7 @@
 
 在浏览器里用电脑键盘弹电子琴。无需服务器，无需安装。
 
-**[▶ 在线体验](https://jikunliu101.github.io/keytone/)**：支持桌面版 Chrome、Edge、Firefox 和 Safari。先点击页面或按一下任意键，才会开始出声。
+**[▶ 在线体验](https://jikunliu101.github.io/keytone/)**：建议使用桌面浏览器（已在 Chromium 内核浏览器上测试）。先点击页面或按一下任意键，才会开始出声。
 
 ## 功能
 
