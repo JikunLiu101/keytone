@@ -1,6 +1,7 @@
 /** App-wide singletons wiring settings, core, input and audio together. */
 import { AudioEngine } from "../audio/audio-engine";
 import { KeyboardController } from "../core/keyboard-controller";
+import { PointerTracker } from "../input/pointer-tracker";
 import { NoteHub } from "../core/note-hub";
 import { createStore } from "../core/store";
 import { loadSettings, saveSettings, type Settings } from "./settings";
@@ -23,6 +24,9 @@ export const keyboard = new KeyboardController(hub, {
   getVelocity: () => settings.get().velocity,
 });
 
+/** Mouse, touch and pen notes; each pointer is its own source. */
+export const pointers = new PointerTracker(hub, () => settings.get().velocity);
+
 export const engine = new AudioEngine(hub);
 
 // Keep the audio engine in sync with settings.
@@ -40,5 +44,5 @@ settings.subscribe(applySettings);
 
 // Handy for debugging in the browser console during development.
 if (import.meta.env.DEV) {
-  Object.assign(window, { __keytone: { hub, keyboard, engine, settings } });
+  Object.assign(window, { __keytone: { hub, keyboard, pointers, engine, settings } });
 }
