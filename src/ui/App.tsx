@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { engine, keyboard } from "../app/services";
+import { engine, keyboard, pointers } from "../app/services";
 import { codeLabel } from "../core/keymap";
 import { attachKeyboardInput } from "../input/keyboard-input";
 import { useSettings, useT } from "../i18n/useT";
@@ -39,9 +39,30 @@ export function App() {
     [],
   );
 
+  // Mobile browsers only start audio inside certain gestures (touchend,
+  // click); try on each until it works. Release fingers if the page loses
+  // focus or is hidden mid-touch (a call, app switch).
+  useEffect(() => {
+    const unlock = () => engine.unlock();
+    const gestures = ["pointerdown", "touchend", "click", "keydown"] as const;
+    for (const g of gestures) window.addEventListener(g, unlock, { capture: true, passive: true });
+    const release = () => pointers.cancelAll();
+    const onVisibility = () => document.hidden && release();
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      for (const g of gestures) window.removeEventListener(g, unlock, { capture: true });
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
   // Opening a dialog stops anything still held.
   useEffect(() => {
-    if (dialog) keyboard.reset();
+    if (dialog) {
+      keyboard.reset();
+      pointers.cancelAll();
+    }
   }, [dialog]);
 
   /** "Hold {key} for {action}" with the key rendered as a <kbd>. */

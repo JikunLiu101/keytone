@@ -1,7 +1,7 @@
-import { useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
+import { useMemo, useSyncExternalStore, type PointerEvent } from "react";
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
-import { engine, hub, keyboard, settings } from "../app/services";
+import { engine, hub, keyboard, pointers } from "../app/services";
 import { findInstrument } from "../audio/instruments";
 import { useT } from "../i18n/useT";
 import { GlassEffects } from "./GlassEffects";
@@ -22,33 +22,25 @@ export function KeyboardView() {
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const instrument = status.currentId ? findInstrument(status.currentId) : undefined;
   const t = useT();
-  /** pointerId → note currently held by that pointer. */
-  const pointers = useRef(new Map<number, number | null>());
-
-  const moveTo = (pointerId: number, midi: number | null) => {
-    const source = `pointer:${pointerId}`;
-    const previous = pointers.current.get(pointerId) ?? null;
-    if (previous === midi) return;
-    if (previous !== null) hub.release(source, previous);
-    if (midi !== null) hub.press(source, midi, settings.get().velocity);
-    pointers.current.set(pointerId, midi);
-  };
-
+  // One handler set for mouse, touch and pen. Each finger is tracked by its
+  // pointerId, so chords and multi-finger slides work.
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.preventDefault(); // no text selection, no emulated mouse events
     engine.unlock();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    moveTo(e.pointerId, midiAt(e.clientX, e.clientY));
+    try {
+      // Keep receiving this pointer's moves even when it leaves the keys.
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Capture can fail for a pointer that has already gone; tracking still works.
+    }
+    pointers.down(e.pointerId, midiAt(e.clientX, e.clientY));
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!pointers.current.has(e.pointerId)) return;
-    moveTo(e.pointerId, midiAt(e.clientX, e.clientY));
+    if (!pointers.isTracking(e.pointerId)) return;
+    pointers.move(e.pointerId, midiAt(e.clientX, e.clientY));
   };
-  const onPointerEnd = (e: PointerEvent<HTMLDivElement>) => {
-    if (!pointers.current.has(e.pointerId)) return;
-    moveTo(e.pointerId, null);
-    pointers.current.delete(e.pointerId);
-  };
+  const onPointerEnd = (e: PointerEvent<HTMLDivElement>) => pointers.up(e.pointerId);
 
   return (
     <div className="stage">
@@ -75,6 +67,7 @@ export function KeyboardView() {
           onPointerUp={onPointerEnd}
           onPointerCancel={onPointerEnd}
           onLostPointerCapture={onPointerEnd}
+          onContextMenu={(e) => e.preventDefault()}
         >
           {layout.keys.map((key) => {
             const label = labels.get(key.midi);

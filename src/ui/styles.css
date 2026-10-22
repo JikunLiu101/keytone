@@ -36,6 +36,10 @@ body,
   margin: 0;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background:
     radial-gradient(ellipse 70% 50% at 50% 105%, rgba(255, 179, 107, 0.1), transparent 70%),
@@ -75,8 +79,10 @@ button {
   transition: background 100ms, border-color 100ms;
 }
 
-.button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.11);
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.11);
+  }
 }
 
 .button:disabled {
@@ -102,9 +108,11 @@ button {
   color: var(--text-dim);
 }
 
-.icon-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text);
+@media (hover: hover) {
+  .icon-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text);
+  }
 }
 
 :focus-visible {
@@ -241,9 +249,12 @@ button {
     color 120ms;
 }
 
-.pad:hover,
-.latch:hover {
-  background: linear-gradient(180deg, #42454f 0%, #31343b 100%);
+/* Hover only where there is a real hover, so taps don't leave pads lit. */
+@media (hover: hover) {
+  .pad:hover,
+  .latch:hover {
+    background: linear-gradient(180deg, #42454f 0%, #31343b 100%);
+  }
 }
 
 .pad:active,
@@ -608,7 +619,10 @@ input[type="range"]:focus-visible::-moz-range-thumb {
 .keys {
   position: relative;
   height: var(--white-h);
+  /* Fingers play the keys: no scrolling, zooming or long-press callouts. */
   touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   cursor: pointer;
 }
 
