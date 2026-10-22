@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
 import { clampScroll, defaultScroll } from "../view/viewport";
@@ -8,6 +8,33 @@ import { useT } from "../i18n/useT";
 import { GlassEffects } from "./GlassEffects";
 
 export const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
+
+type KeyGeometry = (typeof layout.keys)[number];
+
+/**
+ * One key. Memoised so a note on/off re-renders only the key that changed,
+ * not all 65.
+ */
+const Key = memo(function Key({ geometry, label, down }: { geometry: KeyGeometry; label?: string; down: boolean }) {
+  const classes = [
+    "key",
+    geometry.black ? "key--black" : "key--white",
+    label ? "key--playable" : "",
+    down ? "key--down" : "",
+  ].join(" ");
+  return (
+    <div
+      className={classes}
+      data-midi={geometry.midi}
+      style={{ ["--x" as string]: geometry.x, ["--w" as string]: geometry.width }}
+    >
+      <span className="key-label">
+        {label && <span className="key-label__computer">{label}</span>}
+        {!geometry.black && <span className="key-label__note">{geometry.name}</span>}
+      </span>
+    </div>
+  );
+});
 
 /** Find the key under a screen point. Hit-testing respects the 3D transform. */
 function midiAt(x: number, y: number): number | null {
@@ -107,28 +134,9 @@ export function KeyboardView() {
           onLostPointerCapture={onPointerEnd}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {layout.keys.map((key) => {
-            const label = labels.get(key.midi);
-            const classes = [
-              "key",
-              key.black ? "key--black" : "key--white",
-              label ? "key--playable" : "",
-              sounding.has(key.midi) ? "key--down" : "",
-            ].join(" ");
-            return (
-              <div
-                key={key.midi}
-                className={classes}
-                data-midi={key.midi}
-                style={{ ["--x" as string]: key.x, ["--w" as string]: key.width }}
-              >
-                <span className="key-label">
-                  {label && <span className="key-label__computer">{label}</span>}
-                  {!key.black && <span className="key-label__note">{key.name}</span>}
-                </span>
-              </div>
-            );
-          })}
+          {layout.keys.map((key) => (
+            <Key key={key.midi} geometry={key} label={labels.get(key.midi)} down={sounding.has(key.midi)} />
+          ))}
         </div>
         {/* Frosted glass panel standing behind the keys; light bars rise inside it. */}
         <div className="glass" aria-hidden="true">

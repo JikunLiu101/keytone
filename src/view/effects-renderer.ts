@@ -10,10 +10,16 @@
  * - ambient: motes that drift up from held keys, and a faint haze that rises
  *   with how much is being played.
  * Colour comes from one palette family (see palettes.ts), not a rainbow.
+ *
+ * Performance: all soft light comes from small pre-rendered textures
+ * (glow-sprites.ts) stretched with drawImage. No shadowBlur and no per-frame
+ * gradients except the single haze wash, so a frame stays cheap even with
+ * many notes and motes.
  */
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
+import { buildColourSprites, type BeamSprites, type ColourSprites } from "./glow-sprites";
 import { LightBarModel, barAlpha, barSpan } from "./light-bars";
-import { noteColour, rgba, samplePalette, type NoteColour, type PaletteId } from "./palettes";
+import { noteColour, rgba, samplePalette, type PaletteId } from "./palettes";
 
 export interface KeyAnchor {
   /** Horizontal centre of the key, in CSS pixels from the canvas's left. */
@@ -37,15 +43,15 @@ interface Mote {
   age: number;
   life: number;
   size: number;
-  colour: NoteColour;
+  sprites: ColourSprites;
 }
 
 /** Seconds a released bar takes to travel the full height, on any screen size. */
 const RISE_SECONDS = 2.4;
 /** Motes released on a key press, then one every MOTE_INTERVAL while held. */
-const MOTES_PER_PRESS = 4;
-const MOTE_INTERVAL = 0.22;
-const MAX_MOTES = 70;
+const MOTES_PER_PRESS = 3;
+const MOTE_INTERVAL = 0.3;
+const MAX_MOTES = 48;
 /** How quickly the ambient haze follows the amount being played (per second). */
 const HAZE_FOLLOW = 3;
 
@@ -63,10 +69,9 @@ export class EffectsRenderer {
   private lastFrame = 0;
   private width = 0;
   private height = 0;
-  /** Backing-store scale; shadowBlur is in device pixels, so blur radii use it. */
-  private scale = 1;
   private palette: PaletteId = "aurora";
-  private colours = new Map<number, NoteColour>();
+  /** "palette:midi" → that note's glow textures, built on first use. */
+  private sprites = new Map<string, ColourSprites>();
   /** Held keys → time until the next mote. */
   private emitters = new Map<number, number>();
   /** Smoothed 0…1 "how much is playing", drives the haze. */
@@ -84,19 +89,16 @@ export class EffectsRenderer {
   }
 
   setPalette(palette: PaletteId): void {
-    if (palette === this.palette) return;
     this.palette = palette;
-    this.colours.clear();
   }
 
   /** Match the canvas backing store to its CSS size. */
-  resize(width: number, height: number, dpr: number): void {
+  resize(width: number, height: number, scale: number): void {
     this.width = width;
     this.height = height;
-    this.scale = dpr;
-    this.canvas.width = Math.round(width * dpr);
-    this.canvas.height = Math.round(height * dpr);
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.canvas.width = Math.round(width * scale);
+    this.canvas.height = Math.round(height * scale);
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0);
     this.anchorsDirty = true;
     this.draw(now());
   }
@@ -134,13 +136,14 @@ export class EffectsRenderer {
     this.onActivity(false);
   }
 
-  private colour(midi: number): NoteColour {
-    let c = this.colours.get(midi);
-    if (!c) {
-      c = noteColour(this.palette, midi, RANGE_LOW, RANGE_HIGH);
-      this.colours.set(midi, c);
+  private spritesFor(midi: number): ColourSprites {
+    const key = `${this.palette}:${midi}`;
+    let s = this.sprites.get(key);
+    if (!s) {
+      s = buildColourSprites(noteColour(this.palette, midi, RANGE_LOW, RANGE_HIGH));
+      this.sprites.set(key, s);
     }
-    return c;
+    return s;
   }
 
   private getAnchors(): AnchorSet | null {
@@ -219,12 +222,12 @@ export class EffectsRenderer {
       const top = anchors.originY - Math.min(span.top, maxHeight);
       const bottom = anchors.originY - span.bottom;
       if (bottom <= top) continue;
-      this.drawBeam(key, top, bottom, this.colour(bar.midi), alpha, bar.end === null, anchors.originY);
+      this.drawBeam(key, top, bottom, this.spritesFor(bar.midi), alpha, bar.end === null, anchors.originY);
     }
 
     for (const m of this.motes) this.drawMote(m, time);
 
-    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = "source-over";
   }
 
@@ -238,88 +241,73 @@ export class EffectsRenderer {
     g.addColorStop(0, rgba(tint, 0.2 * this.haze));
     g.addColorStop(0.5, rgba(tint, 0.06 * this.haze));
     g.addColorStop(1, rgba(tint, 0));
+    ctx.globalAlpha = 1;
     ctx.fillStyle = g;
     ctx.fillRect(0, top, this.width, anchors.originY - top);
   }
 
   /**
-   * Primary + secondary: one beam. Soft bloom (shadowBlur) around a body whose
-   * top trails off into a tail, with a fine bright filament inside. A held
-   * beam also pools light at the bottom of the glass.
+   * Primary + secondary: one beam, as three stretched textures — a wide soft
+   * bloom, a softer body and a bright filament — each with a fading tail at
+   * the top (and a soft lower end once detached). A held beam also pools
+   * light at the bottom of the glass.
    */
   private drawBeam(
     key: KeyAnchor,
     top: number,
     bottom: number,
-    colour: NoteColour,
+    sprites: ColourSprites,
     alpha: number,
     held: boolean,
     originY: number,
   ): void {
-    const { ctx } = this;
     const height = bottom - top;
-    const body = key.width * 0.42;
-    const filament = Math.max(1.2, key.width * 0.07);
-    // Tail: the top fades out; a detached beam also softens at its lower end.
-    const vertical = (c: string, cTop: string, cBottom: string) => {
-      const g = ctx.createLinearGradient(0, top, 0, bottom);
-      g.addColorStop(0, cTop);
-      g.addColorStop(Math.min(0.45, 24 / Math.max(height, 1) + 0.15), c);
-      g.addColorStop(held ? 1 : 0.85, c);
-      g.addColorStop(1, cBottom);
-      return g;
-    };
-
-    // Bloom: a blurred, low-alpha column so the light spills onto the frost.
-    ctx.shadowColor = rgba(colour.glow, 0.85 * alpha);
-    ctx.shadowBlur = key.width * 1.2 * this.scale;
-    ctx.fillStyle = vertical(rgba(colour.glow, 0.3 * alpha), rgba(colour.glow, 0), rgba(colour.glow, held ? 0.3 * alpha : 0));
-    capsule(ctx, key.x - body / 2, top, body, height);
-
-    // Body: softer, tighter glow.
-    ctx.shadowBlur = key.width * 0.3 * this.scale;
-    ctx.fillStyle = vertical(rgba(colour.glow, 0.5 * alpha), rgba(colour.glow, 0), rgba(colour.glow, held ? 0.5 * alpha : 0));
-    capsule(ctx, key.x - body * 0.32, top, body * 0.64, height);
-
-    // Filament: the hot centre line.
-    ctx.shadowColor = rgba(colour.core, 0.9 * alpha);
-    ctx.shadowBlur = key.width * 0.12 * this.scale;
-    ctx.fillStyle = vertical(rgba(colour.core, 0.95 * alpha), rgba(colour.core, 0), rgba(colour.core, held ? 0.95 * alpha : 0));
-    capsule(ctx, key.x - filament / 2, top, filament, height);
-    ctx.shadowBlur = 0;
-
-    if (held) this.drawPool(key, colour, originY);
+    let tail = Math.min(height * 0.45, Math.max(24, height * 0.3));
+    let end = held ? 0 : Math.min(height * 0.15, 30);
+    if (tail + end > height) {
+      const k = height / (tail + end);
+      tail *= k;
+      end *= k;
+    }
+    this.drawLayer(sprites.bloom, key.x, key.width * 2.2, top, bottom, tail, end, 0.38 * alpha);
+    this.drawLayer(sprites.bloom, key.x, key.width * 0.6, top, bottom, tail, end, 0.6 * alpha);
+    this.drawLayer(sprites.core, key.x, Math.max(4, key.width * 0.32), top, bottom, tail, end, alpha);
+    if (held) {
+      const rx = key.width * 1.9;
+      const ry = key.width * 0.45;
+      this.ctx.globalAlpha = 1;
+      this.ctx.drawImage(sprites.pool, key.x - rx, originY - ry, rx * 2, ry * 2);
+    }
   }
 
-  /** Secondary: a flat, wide ellipse of light where a held beam leaves the glass's edge. */
-  private drawPool(key: KeyAnchor, colour: NoteColour, originY: number): void {
+  private drawLayer(
+    s: BeamSprites,
+    cx: number,
+    w: number,
+    top: number,
+    bottom: number,
+    tail: number,
+    end: number,
+    alpha: number,
+  ): void {
     const { ctx } = this;
-    const rx = key.width * 1.9;
-    const ry = key.width * 0.45;
-    ctx.save();
-    ctx.translate(key.x, originY);
-    ctx.scale(1, ry / rx);
-    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
-    g.addColorStop(0, rgba(colour.core, 0.7));
-    g.addColorStop(0.35, rgba(colour.glow, 0.3));
-    g.addColorStop(1, rgba(colour.glow, 0));
-    ctx.fillStyle = g;
-    ctx.fillRect(-rx, -rx, rx * 2, rx * 2);
-    ctx.restore();
+    const x = cx - w / 2;
+    const midTop = top + tail;
+    const midBottom = bottom - end;
+    ctx.globalAlpha = Math.min(1, alpha);
+    if (tail > 0.5) ctx.drawImage(s.fadeIn, x, top, w, tail);
+    if (midBottom > midTop) ctx.drawImage(s.body, x, midTop, w, midBottom - midTop);
+    if (end > 0.5) ctx.drawImage(s.fadeOut, x, midBottom, w, end);
   }
 
   /** Ambient: a soft point of light that fades in, sways and fades out as it rises. */
   private drawMote(m: Mote, time: number): void {
-    const { ctx } = this;
     const life = m.age / m.life;
     const fade = Math.sin(Math.PI * Math.min(1, life)); // in and out
     const x = m.x + Math.sin(time * m.swayFreq * Math.PI * 2 + m.phase) * m.swayAmp;
-    ctx.shadowColor = rgba(m.colour.glow, 0.9 * fade);
-    ctx.shadowBlur = m.size * 4 * this.scale;
-    ctx.fillStyle = rgba(m.colour.core, 0.85 * fade);
-    ctx.beginPath();
-    ctx.arc(x, m.y, m.size, 0, Math.PI * 2);
-    ctx.fill();
+    const r = m.size * 5;
+    this.ctx.globalAlpha = 0.9 * fade;
+    this.ctx.drawImage(m.sprites.mote, x - r, m.y - r, r * 2, r * 2);
   }
 
   private spawnMote(midi: number, burst: boolean): void {
@@ -336,15 +324,7 @@ export class EffectsRenderer {
       age: 0,
       life: 1.4 + Math.random() * 1.4,
       size: 0.8 + Math.random() * 1.4,
-      colour: this.colour(midi),
+      sprites: this.spritesFor(midi),
     });
   }
-}
-
-/** A vertical rounded column; the radius follows the width so ends are soft. */
-function capsule(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
-  if (w <= 0 || h <= 0) return;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(w / 2, h / 2));
-  ctx.fill();
 }

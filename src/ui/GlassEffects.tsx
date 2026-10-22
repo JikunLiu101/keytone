@@ -61,8 +61,9 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
     rendererRef.current = renderer;
     // Development only: lets tests step the animation when the page is hidden.
     if (import.meta.env.DEV) Object.assign(window, { __keytoneEffects: renderer });
-    // The canvas is seen at an angle and slightly magnified, so render a bit sharper.
-    const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight, (window.devicePixelRatio || 1) * 1.5);
+    // Glow is soft, so the canvas does not need full retina resolution; capping
+    // it keeps per-frame work small on high-density screens.
+    const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight, Math.min(window.devicePixelRatio || 1, 1.5));
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
