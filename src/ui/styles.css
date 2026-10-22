@@ -1006,25 +1006,26 @@ kbd {
 }
 
 .app[data-compact] .keyboard-body {
-  /* Shorter keys and a lower minimum glass leave more height for key width. */
-  --white-w: min(calc((100vw - 72px) / 15), calc((var(--main-h, 360px) - 84px) / 6.8), 72px);
-  --white-h: calc(var(--white-w) * 4.4);
+  /*
+   * Key width and height are independent here: width comes from the screen
+   * width (about 13 white keys, just under two octaves, at finger size) and
+   * height from the screen height, so a short landscape phone still gets
+   * wide keys.
+   */
+  --white-w: min(calc((100vw - 72px) / 13), 80px);
+  --white-h: clamp(110px, calc(var(--main-h, 360px) * 0.48), 260px);
   margin: 0;
   transform: translateX(calc(var(--kb-scroll, 0) * var(--white-w) * -1)) rotateX(26deg);
 }
 
 .app[data-compact] .glass {
-  height: clamp(
-    calc(var(--white-w) * 2),
-    calc(var(--main-h, 360px) - var(--white-w) * 4 - 86px),
-    calc(var(--white-w) * 12)
-  );
+  height: clamp(60px, calc(var(--main-h, 360px) - var(--white-h) - 55px), 1200px);
 }
 
 /* A slimmer LCD strip and less bottom padding: phone height goes to the keys. */
 .app[data-compact] .keyboard-top {
-  height: calc(var(--white-w) + 10px);
-  min-height: 40px;
+  height: 46px;
+  min-height: 0;
   padding: 6px 6px 5px;
 }
 
