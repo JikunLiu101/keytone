@@ -73,6 +73,12 @@ describe("sanitize", () => {
     expect(defaultSettings("en", false, false).panelCollapsed).toBe(false);
   });
 
+  it("keeps a valid light palette and rejects unknown ones", () => {
+    expect(defaults.lightPalette).toBe("aurora");
+    expect(sanitize({ lightPalette: "amber" }, defaults).lightPalette).toBe("amber");
+    expect(sanitize({ lightPalette: "rainbow" }, defaults).lightPalette).toBe("aurora");
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

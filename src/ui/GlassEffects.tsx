@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { hub } from "../app/services";
+import { hub, settings } from "../app/services";
 import { useSettings } from "../i18n/useT";
 import { EffectsRenderer, type AnchorSet } from "../view/effects-renderer";
 import type { KeyboardLayout } from "../view/layout";
@@ -13,7 +13,8 @@ import type { KeyboardLayout } from "../view/layout";
  * display stays readable, and the glass only lights up while bars are drawn.
  */
 export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
-  const { effects } = useSettings();
+  const { effects, lightPalette } = useSettings();
+  const rendererRef = useRef<EffectsRenderer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Keep the lit pane clear of the LCD strip: measure how tall the strip
@@ -56,6 +57,10 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
     };
 
     const renderer = new EffectsRenderer(canvas, geometry, (active) => glass.classList.toggle("glass--lit", active));
+    renderer.setPalette(settings.get().lightPalette);
+    rendererRef.current = renderer;
+    // Development only: lets tests step the animation when the page is hidden.
+    if (import.meta.env.DEV) Object.assign(window, { __keytoneEffects: renderer });
     // The canvas is seen at an angle and slightly magnified, so render a bit sharper.
     const resize = () => renderer.resize(canvas.clientWidth, canvas.clientHeight, (window.devicePixelRatio || 1) * 1.5);
     resize();
@@ -66,8 +71,14 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
       off();
       observer.disconnect();
       renderer.dispose();
+      rendererRef.current = null;
     };
   }, [effects, layout]);
+
+  // Switch colours without rebuilding the renderer.
+  useEffect(() => {
+    rendererRef.current?.setPalette(lightPalette);
+  }, [lightPalette]);
 
   return <canvas ref={canvasRef} className="glass-canvas" />;
 }
