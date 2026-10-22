@@ -1,6 +1,7 @@
 import { Reverb } from "smplr";
 import type { NoteEvent, NoteHub } from "../core/note-hub";
 import { findInstrument, type InstrumentBackend, type InstrumentDef } from "./instruments";
+import { primeMediaPlayback } from "./mobile-audio";
 
 export interface EngineStatus {
   /** Instrument currently playing, or null before the first one loads. */
@@ -9,6 +10,8 @@ export interface EngineStatus {
   loadingId: string | null;
   /** Last load failure, cleared on the next successful load. */
   errorId: string | null;
+  /** True once the browser lets the AudioContext run (after a user gesture). */
+  audioRunning: boolean;
 }
 
 /** Send level for the "light" reverb. */
@@ -26,7 +29,7 @@ export class AudioEngine {
   private current: { def: InstrumentDef; backend: InstrumentBackend } | null = null;
   /** midi → function that stops the voice started for it. */
   private voices = new Map<number, () => void>();
-  private status: EngineStatus = { currentId: null, loadingId: null, errorId: null };
+  private status: EngineStatus = { currentId: null, loadingId: null, errorId: null, audioRunning: false };
   private listeners = new Set<() => void>();
   private loadToken = 0;
 
@@ -41,6 +44,14 @@ export class AudioEngine {
     this.master.connect(this.reverbSend);
     this.setupReverb();
 
+    // Track whether audio may play (suspended until a gesture; iOS can also
+    // "interrupt" it, e.g. during a call).
+    this.status.audioRunning = this.context.state === "running";
+    this.context.addEventListener("statechange", () => {
+      const running = this.context.state === "running";
+      if (running !== this.status.audioRunning) this.setStatus({ audioRunning: running });
+    });
+
     hub.onNote(this.handleNote);
   }
 
@@ -51,9 +62,17 @@ export class AudioEngine {
 
   getStatus = (): EngineStatus => this.status;
 
-  /** Browsers start audio suspended until a user gesture; call from one. */
+  /**
+   * Browsers start audio suspended until a user gesture; call from one. On
+   * phones only some gestures count (touchend, click), so this is safe to call
+   * from every gesture: it keeps trying until the context is running.
+   */
   unlock(): void {
-    if (this.context.state === "suspended") void this.context.resume();
+    if (this.context.state === "running") return;
+    primeMediaPlayback();
+    this.context.resume().catch(() => {
+      // Not a qualifying gesture yet; the next one will try again.
+    });
   }
 
   /** Master volume, 0–1. Uses a squared curve so the slider feels even. */

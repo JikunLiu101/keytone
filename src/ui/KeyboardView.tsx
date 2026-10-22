@@ -83,7 +83,11 @@ export function KeyboardView() {
           <div className="lcd">
             <span className="lcd-main">{instrument ? t(instrument.nameKey) : "—"}</span>
             <span className="lcd-sub">
-              {status.loadingId ? t("status.loading") : `${t("lcd.octave")} ${shift > 0 ? `+${shift}` : shift}`}
+              {status.loadingId
+                ? t("status.loading")
+                : !status.audioRunning
+                  ? t("audio.tapToStart")
+                  : `${t("lcd.octave")} ${shift > 0 ? `+${shift}` : shift}`}
               {sustain ? ` · ${t("lcd.sustain")}` : ""}
             </span>
           </div>
