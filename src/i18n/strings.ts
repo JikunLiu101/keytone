@@ -55,6 +55,9 @@ const en = {
   "credits.font": "Typeface: Barlow by Jeremy Tribby, SIL Open Font License 1.1.",
 
   "close": "Close",
+  "nav.label": "Visible part of the keyboard",
+  "rotate.title": "Turn your phone sideways",
+  "rotate.body": "Landscape gives the keys enough room for your fingers.",
 
   "inst.grandPiano": "Grand Piano",
   "short.grandPiano": "Grand",
@@ -149,6 +152,9 @@ const zh: Record<MessageKey, string> = {
   "credits.font": "字体：Barlow，作者 Jeremy Tribby，采用 SIL 开源字体许可 1.1。",
 
   "close": "关闭",
+  "nav.label": "当前显示的琴键范围",
+  "rotate.title": "请把手机横过来",
+  "rotate.body": "横屏才能把琴键放大到适合手指弹奏。",
 
   "inst.grandPiano": "三角钢琴",
   "short.grandPiano": "三角钢琴",

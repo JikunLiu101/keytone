@@ -1,12 +1,13 @@
-import { useMemo, useSyncExternalStore, type PointerEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
-import { engine, hub, keyboard, pointers } from "../app/services";
+import { clampScroll, defaultScroll } from "../view/viewport";
+import { engine, hub, keyboard, keyboardWindow, pointers } from "../app/services";
 import { findInstrument } from "../audio/instruments";
 import { useT } from "../i18n/useT";
 import { GlassEffects } from "./GlassEffects";
 
-const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
+export const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
 
 /** Find the key under a screen point. Hit-testing respects the 3D transform. */
 function midiAt(x: number, y: number): number | null {
@@ -22,6 +23,32 @@ export function KeyboardView() {
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const instrument = status.currentId ? findInstrument(status.currentId) : undefined;
   const t = useT();
+  const win = useSyncExternalStore(keyboardWindow.subscribe, keyboardWindow.get);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const keysRef = useRef<HTMLDivElement>(null);
+
+  // Compact mode: work out how many white keys fit, and keep the window valid.
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    const keys = keysRef.current;
+    if (!win.compact || !stage || !keys) return;
+    const measure = () => {
+      const keyWidth = keys.offsetWidth / layout.whiteCount;
+      if (!keyWidth) return;
+      const visible = Math.min(layout.whiteCount, (stage.clientWidth - 24) / keyWidth);
+      const current = keyboardWindow.get();
+      const scroll = current.ready
+        ? clampScroll(current.scroll, visible, layout.whiteCount)
+        : defaultScroll(visible, layout.whiteCount);
+      // Only a window narrower than the keyboard is a real measurement.
+      keyboardWindow.set({ visible, scroll, ready: visible < layout.whiteCount });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    observer.observe(keys);
+    return () => observer.disconnect();
+  }, [win.compact, win.stageHeight]);
   // One handler set for mouse, touch and pen. Each finger is tracked by its
   // pointerId, so chords and multi-finger slides work.
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -43,8 +70,14 @@ export function KeyboardView() {
   const onPointerEnd = (e: PointerEvent<HTMLDivElement>) => pointers.up(e.pointerId);
 
   return (
-    <div className="stage">
-      <div className="keyboard-body" style={{ ["--white-count" as string]: layout.whiteCount }}>
+    <div className="stage" ref={stageRef}>
+      <div
+        className="keyboard-body"
+        style={{
+          ["--white-count" as string]: layout.whiteCount,
+          ["--kb-scroll" as string]: win.compact ? win.scroll : 0,
+        }}
+      >
         <div className="keyboard-top" aria-hidden="true">
           <div className="grille" />
           <div className="lcd">
@@ -59,6 +92,7 @@ export function KeyboardView() {
         </div>
         <div className="keyboard-felt" aria-hidden="true" />
         <div
+          ref={keysRef}
           className="keys"
           role="group"
           aria-label={t("keys.label")}
