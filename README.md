@@ -4,6 +4,8 @@
 
 Play an electronic keyboard with your computer keyboard, right in the browser. No server, no install.
 
+**[▶ Play it online](https://jikunliu101.github.io/keytone/)**: works in desktop Chrome, Edge, Firefox and Safari. Click or press a key once to start the sound.
+
 ## Features
 
 - 17 curated sounds in 5 families: pianos, organs and harpsichord, ensemble and winds, plucked and mallets, and synths
