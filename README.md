@@ -4,7 +4,7 @@
 
 Play an electronic keyboard with your computer keyboard, right in the browser. No server, no install.
 
-**[▶ Play it online](https://jikunliu101.github.io/keytone/)**: works in desktop Chrome, Edge, Firefox and Safari. Click or press a key once to start the sound.
+**[▶ Play it online](https://jikunliu101.github.io/keytone/)**: best on a desktop browser (tested in Chromium). Click or press a key once to start the sound.
 
 ## Features
 
