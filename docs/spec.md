@@ -1,14 +1,14 @@
 # Keytone — Product Spec
 
-> Status: M1 and M2 (version 1) implemented (2026-10-21). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: version 1 (M1, M2) and version 2 implemented and deployed (2026-10-22). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
 ## 1. Goals
 
 - Personal use first. Published as an open-source repo so others can run or self-host it.
-- Pure front end. Runs locally first, cloud deploy later.
-- Desktop browsers first. Mobile comes later.
+- Pure front end. Runs locally, and is deployed to GitHub Pages.
+- Desktop browsers first; phones and tablets are supported in landscape.
 
 ## 2. Scope
 
@@ -27,13 +27,13 @@ Keytone is a browser-only app that turns your computer keyboard into an electron
 - Sound source credits
 
 ### Version 2
-- Light bars or bubbles rising from pressed keys, like the "dreamy piano" visual
+- Light bars rising from pressed keys, like the "dreamy piano" visual
 - Touch input
 - Mobile layout
+- GitHub Pages deploy
 
 ### Later
 - Self-hosted samples
-- Cloud deploy
 - External MIDI keyboards
 - Optional Three.js renderer
 
@@ -140,8 +140,8 @@ All instruments come from [smplr](https://github.com/danigb/smplr).
 
 ### Look
 - The keyboard should have depth and a 3D feel, as if you were playing a real electronic keyboard through a limited field of view.
-- Version 1 uses CSS 3D perspective, shading and key thickness.
-- Detailed visual polish comes later.
+- CSS 3D perspective, shading and key thickness.
+- Type is Barlow, self-hosted (OFL).
 
 ### Keys
 - Show C1–E6.
@@ -151,7 +151,7 @@ All instruments come from [smplr](https://github.com/danigb/smplr).
 
 ### Effects layer
 - Version 1 reserves a transparent canvas above the keys.
-- Version 2 draws rising light bars or bubbles there, using Canvas 2D.
+- Version 2 draws rising light bars on an upright glass panel, using Canvas 2D (see §9.1).
 
 ### Language
 - English and Chinese.
@@ -218,10 +218,12 @@ Design rules:
    - Collapsible panel
    - 3D styling
    - READMEs and LICENSE
-3. **V2**
+3. **V2** (done)
    - Rising light-bar effect
+   - GitHub Pages deploy
    - Touch input
    - Mobile layout
+   - Phone audio, light-bar redesign, performance pass
 
 ## 9. Version 2 Spec
 
@@ -236,8 +238,15 @@ Agreed 2026-10-21.
   - Bars live inside the glass panel.
   - While a key is held, a glowing bar grows upward from the bottom of the glass, above that key. The longer the key is held, the longer the bar.
   - On release, the bar detaches, keeps rising at a steady speed, and fades out near the glass's top edge. Bars never leave the glass.
-- **Sparks**: a few small sparks burst from the key top at the moment of the press.
-- **Colour by pitch**: the 12 pitch classes map to a rainbow, and the same note has the same colour in every octave.
+- **Glow**: each bar is a soft beam with a bright core, a wide bloom and a fading top tail; a detached bar also softens at its lower end.
+- **Atmosphere**
+  - A held bar pools light where it meets the bottom of the glass.
+  - Small motes burst on the press and keep drifting up while the key is held, swaying and fading.
+  - A faint haze rises from the bottom of the glass with how many keys are held.
+- **Colour**
+  - Comes from one palette family, not a rainbow. Low notes are deep, high notes are bright, with a small per-pitch-class offset so neighbouring notes differ.
+  - Two palettes: **Aurora** (cool: violet → blue → ice) and **Amber** (warm: orange → gold → cream).
+  - Chosen in the control panel next to the effects switch. Default Aurora; saved with the settings.
 - **Sustain** does not lengthen a bar. Bars follow how long the finger holds the key, not how long the sound lasts.
 - **Speed** is fixed for now. A slider may come later.
 - **Effects switch** in the control panel:
@@ -249,6 +258,13 @@ Agreed 2026-10-21.
   - Key x positions come straight from the renderer-independent layout.
   - A released bar takes the same time to cross the glass on any screen size.
   - Drawing is driven by NoteHub key events and never adds audio latency.
+  - The animation loop runs only while something is on screen.
+- **Performance**
+  - No `shadowBlur` and no per-frame gradients (except the one haze wash). All soft light comes from small glow textures, rendered once per palette and note, and stretched with `drawImage`.
+  - The canvas resolution is capped at 1.5× device pixels.
+  - Motes are capped at 48.
+  - Key presses animate `transform` only; the glass uses no blend mode.
+  - Each on-screen key is memoised, so a note re-renders one key, not all of them.
 
 ### 9.2 Touch input
 - Multi-touch: several fingers can play a chord at once.
@@ -256,20 +272,30 @@ Agreed 2026-10-21.
 - Velocity uses the fixed velocity setting.
 
 ### 9.3 Mobile layout
+- **When**: the compact layout turns on for a coarse (touch) pointer when fitting all 38 white keys would make each narrower than 32px. `?layout=compact` or `?layout=full` forces either layout.
 - **Portrait**: a "please rotate your phone" prompt.
 - **Landscape**
-  - Shows about 2 octaves at a finger-friendly size.
+  - Shows a window of about 13 white keys (roughly 2 octaves). Key width is about (screen width − 72px) / 13; height is set separately, so keys are not squashed.
   - A thumbnail strip of all 38 keys above the keys; drag it to choose the visible range.
+  - The control panel floats over the stage, so opening it does not resize the keys.
 - **On phones**
   - The control panel starts collapsed.
   - Computer-key letters and the keyboard hint are hidden.
 
 ### 9.4 Deployment
 - GitHub Pages at `jikunliu101.github.io/keytone`.
-- Published automatically by GitHub Actions on every push to `main`.
+- Published automatically by GitHub Actions on every push to `main`: install, test, build, deploy.
+- Vite builds with a relative base (`./`), so the same build works at any path.
+
+### 9.4a Phone audio
+- On iOS, Web Audio is muted by the silent switch by default. To play anyway:
+  - set `navigator.audioSession.type = "playback"` where supported;
+  - play a short silent `<audio>` once on the first gesture;
+  - retry `AudioContext.resume()` on pointer, touch, click and key gestures until it runs.
+- Until audio is running, the LCD shows a "tap to start" hint.
 
 ### 9.5 Order
-Each step gets its own commit.
+Each step gets its own commit. All done.
 1. Light-bar effect
 2. GitHub Pages deploy
 3. Touch input
