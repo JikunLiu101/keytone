@@ -70,7 +70,8 @@ export function App() {
   // focus or is hidden mid-touch (a call, app switch).
   useEffect(() => {
     const unlock = () => engine.unlock();
-    const gestures = ["pointerdown", "touchend", "click", "keydown"] as const;
+    // Chrome counts pointerup/touchend (not a touch pointerdown) as activation.
+    const gestures = ["pointerdown", "pointerup", "touchend", "click", "keydown"] as const;
     for (const g of gestures) window.addEventListener(g, unlock, { capture: true, passive: true });
     const release = () => pointers.cancelAll();
     const onVisibility = () => document.hidden && release();
