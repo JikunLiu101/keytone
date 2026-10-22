@@ -2,6 +2,7 @@
 import { DEFAULT_INSTRUMENT_ID, findInstrument } from "../audio/instruments";
 import { DEFAULT_BINDINGS, NOTE_KEYS, type BindableAction, type KeyBindings } from "../core/keymap";
 import { detectLanguage, type Language } from "../i18n/strings";
+import { PALETTE_IDS, type PaletteId } from "../view/palettes";
 
 export interface Settings {
   instrumentId: string;
@@ -12,6 +13,8 @@ export interface Settings {
   reverb: boolean;
   /** Rising light-bar effect. */
   effects: boolean;
+  /** Light-bar colour family. */
+  lightPalette: PaletteId;
   language: Language;
   bindings: KeyBindings;
   panelCollapsed: boolean;
@@ -26,6 +29,7 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     velocity: 100,
     reverb: true,
     effects: !reducedMotion,
+    lightPalette: "aurora",
     language,
     bindings: { ...DEFAULT_BINDINGS },
     // Phones start with the panel tucked away so the keys get the room.
@@ -85,6 +89,9 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     velocity: Math.round(num(r.velocity, 1, 127, defaults.velocity)),
     reverb: typeof r.reverb === "boolean" ? r.reverb : defaults.reverb,
     effects: typeof r.effects === "boolean" ? r.effects : defaults.effects,
+    lightPalette: PALETTE_IDS.includes(r.lightPalette as PaletteId)
+      ? (r.lightPalette as PaletteId)
+      : defaults.lightPalette,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,

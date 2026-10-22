@@ -423,6 +423,65 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   gap: 6px;
 }
 
+/* Light colour: two linked panel buttons, each with a swatch of its palette. */
+.segmented {
+  display: inline-flex;
+  margin-left: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px 6px 9px;
+  border: none;
+  background: linear-gradient(180deg, #3a3d46 0%, #2b2d34 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  color: #b9bdc6;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.segment + .segment {
+  border-left: 1px solid rgba(0, 0, 0, 0.55);
+}
+
+.segment--on {
+  background: linear-gradient(180deg, #2f3a45 0%, #232c35 100%);
+  color: #fff;
+}
+
+.swatch {
+  width: 18px;
+  height: 7px;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+
+.segment--on .swatch {
+  opacity: 1;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.segment--aurora .swatch {
+  background: linear-gradient(90deg, #704aff, #3e96ff, #56d6ff, #c4f4ff);
+}
+
+.segment--amber .swatch {
+  background: linear-gradient(90deg, #ff6e24, #ffc45c, #ffdf96, #fff0d6);
+}
+
+@media (hover: hover) {
+  .segment:not(.segment--on):hover {
+    background: linear-gradient(180deg, #42454f 0%, #31343b 100%);
+  }
+}
+
 .indicators {
   display: flex;
   gap: 6px;

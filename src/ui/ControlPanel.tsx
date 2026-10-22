@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { engine, hub, keyboard, settings } from "../app/services";
 import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instruments";
 import { dynamicMark } from "../core/dynamics";
+import { PALETTE_IDS } from "../view/palettes";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
@@ -174,6 +175,20 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
             <span className="led" aria-hidden="true" />
             {t("panel.effects")}
           </button>
+          <div className="segmented" role="radiogroup" aria-label={t("panel.palette")}>
+            {PALETTE_IDS.map((id) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={s.lightPalette === id}
+                className={`segment segment--${id} ${s.lightPalette === id ? "segment--on" : ""}`}
+                onClick={() => settings.set({ lightPalette: id })}
+              >
+                <span className="swatch" aria-hidden="true" />
+                {t(`palette.${id}`)}
+              </button>
+            ))}
+          </div>
         </div>
         {indicators}
       </div>
