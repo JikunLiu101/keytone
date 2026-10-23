@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: versions 1 and 2 implemented and deployed (2026-10-22); version 3 (scores, §10) in progress. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
@@ -31,6 +31,11 @@ Keytone is a browser-only app that turns your computer keyboard into an electron
 - Touch input
 - Mobile layout
 - GitHub Pages deploy
+
+### Version 3
+- Scores on the glass: jianpu and falling notes
+- Practice mode
+- Score editor and local library
 
 ### Later
 - Self-hosted samples
@@ -376,7 +381,7 @@ pickup: 1
 Staff notation, MIDI / MusicXML import, auto-play demo, grades, lyrics (reserved in the format), link sharing, editing on phones.
 
 ### 10.9 Order
-Each step is shown, then committed after approval.
+Each step is shown, then committed after approval. All done.
 1. Score format and jianpu display (glass music stand, pages, two built-in songs)
 2. Editor (digit input, audition, text view, library, import / export)
 3. Practice mode on jianpu
