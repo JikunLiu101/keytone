@@ -53,10 +53,29 @@ export interface Score {
   events: ScoreEvent[];
 }
 
+export type ParseErrorCode =
+  | "badKey"
+  | "badTime"
+  | "badTempo"
+  | "badPickup"
+  | "badHeader"
+  | "dashFirst"
+  | "unexpected"
+  | "chordUnclosed"
+  | "outOfRange";
+
 export interface ParseError {
-  /** 1-based line in the source text. */
+  /** 1-based line in the source text (0 when it applies to the whole score). */
   line: number;
+  code: ParseErrorCode;
+  /** The text that caused it, if any. */
+  detail?: string;
+  /** English description, for logs and tests. */
   message: string;
+}
+
+function error(line: number, code: ParseErrorCode, message: string, detail?: string): ParseError {
+  return { line, code, message, detail };
 }
 
 export interface ParseResult {
@@ -108,23 +127,23 @@ function readHeader(score: Score, name: string, value: string, line: number, err
     case "key": {
       const key = (KEY_ALIASES[value] ?? value) as KeyName;
       if (KEY_NAMES.includes(key)) score.key = key;
-      else errors.push({ line, message: `Unknown key "${value}"` });
+      else errors.push(error(line, "badKey", `Unknown key "${value}"`, value));
       return;
     }
     case "time":
       if (TIME_SIGNATURES.includes(value as TimeSignature)) score.time = value as TimeSignature;
-      else errors.push({ line, message: `Unsupported time signature "${value}"` });
+      else errors.push(error(line, "badTime", `Unsupported time signature "${value}"`, value));
       return;
     case "tempo": {
       const n = Number(value);
       if (Number.isFinite(n) && n > 0) score.tempo = Math.round(Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, n)));
-      else errors.push({ line, message: `Bad tempo "${value}"` });
+      else errors.push(error(line, "badTempo", `Bad tempo "${value}"`, value));
       return;
     }
     case "pickup": {
       const n = Number(value);
       if (Number.isFinite(n) && n >= 0) score.pickup = n;
-      else errors.push({ line, message: `Bad pickup "${value}"` });
+      else errors.push(error(line, "badPickup", `Bad pickup "${value}"`, value));
       return;
     }
     default:
@@ -179,7 +198,7 @@ function readBody(text: string, firstLine: number, errors: ParseError[]): ScoreE
       i++;
       const last = events[events.length - 1];
       if (last) last.extensions++;
-      else errors.push({ line, message: `"-" needs a note before it` });
+      else errors.push(error(line, "dashFirst", `"-" needs a note before it`));
     } else if (c === "0") {
       i++;
       const e: ScoreEvent = { kind: "rest", pitches: [], halvings: 0, dotted: false, extensions: 0 };
@@ -196,12 +215,12 @@ function readBody(text: string, firstLine: number, errors: ParseError[]): ScoreE
         const p = readPitch();
         if (p) pitches.push(p);
         else {
-          errors.push({ line, message: `Unexpected "${peek()}" in chord` });
+          errors.push(error(line, "unexpected", `Unexpected "${peek()}" in chord`, peek()));
           i++;
         }
       }
       if (peek() === "]") i++;
-      else errors.push({ line, message: `Chord is missing "]"` });
+      else errors.push(error(line, "chordUnclosed", `Chord is missing "]"`));
       const e: ScoreEvent = {
         kind: pitches.length === 1 ? "note" : "chord",
         pitches,
@@ -220,7 +239,7 @@ function readBody(text: string, firstLine: number, errors: ParseError[]): ScoreE
         events.push(e);
       } else {
         i = start + 1;
-        errors.push({ line, message: `Unexpected "${c}"` });
+        errors.push(error(line, "unexpected", `Unexpected "${c}"`, c));
       }
     }
   }
@@ -241,14 +260,14 @@ export function parseScore(text: string): ParseResult {
     for (let n = 0; n < separator; n++) {
       const m = /^\s*([A-Za-z]+)\s*:\s*(.*?)\s*$/.exec(lines[n]);
       if (m) readHeader(score, m[1].toLowerCase(), m[2], n + 1, errors);
-      else if (lines[n].trim()) errors.push({ line: n + 1, message: `Expected "name: value"` });
+      else if (lines[n].trim()) errors.push(error(n + 1, "badHeader", `Expected "name: value"`, lines[n].trim()));
     }
     bodyStart = separator + 1;
   }
   score.events = readBody(lines.slice(bodyStart).join("\n"), bodyStart + 1, errors);
   for (const e of score.events) {
     if (e.pitches.some((p) => !inRange(pitchMidi(p, score.key)))) {
-      errors.push({ line: 0, message: "Some notes are outside the keyboard's range" });
+      errors.push(error(0, "outOfRange", "Some notes are outside the keyboard's range"));
       break;
     }
   }

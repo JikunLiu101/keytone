@@ -1438,6 +1438,7 @@ kbd {
 }
 
 .j-glyph {
+  position: relative;
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
@@ -1572,7 +1573,271 @@ kbd {
   stroke-linejoin: round;
 }
 
-.sheet:not([data-hints]) .j-key {
+.sheet:not([data-hints]) .j-key,
+.editor-sheet:not([data-hints]) .j-key {
   visibility: hidden;
   height: 0.3em;
+}
+
+/* ---------- Score editor ---------- */
+
+/*
+ * Covers the control panel and the glass, stopping just above the keys
+ * (--editor-bottom is measured), so the keyboard stays in view.
+ */
+.editor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--editor-bottom, 40%);
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 24px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.6);
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, var(--metal-hi) 0%, var(--metal) 45%, var(--metal-lo) 100%);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 60px rgba(0, 0, 0, 0.55);
+  outline: none;
+  animation: editor-in 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes editor-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+.editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.editor-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.editor-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(255, 179, 107, 0.1);
+  border: 1px solid rgba(255, 179, 107, 0.25);
+  color: #f3d6b8;
+  font-size: 13.5px;
+}
+
+.editor-banner--danger {
+  background: rgba(255, 123, 123, 0.1);
+  border-color: rgba(255, 123, 123, 0.3);
+  color: #ffd2d2;
+}
+
+.editor-banner--danger span {
+  margin-right: auto;
+}
+
+.button--danger {
+  background: linear-gradient(180deg, #8a3a3a 0%, #6e2c2c 100%);
+  color: #fff;
+}
+
+.editor-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field input,
+.field select {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2a2c33 0%, #222429 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  user-select: text;
+}
+
+.field input[type="number"] {
+  width: 76px;
+}
+
+.field--title input {
+  width: min(320px, 60vw);
+}
+
+.field input:disabled,
+.field select:disabled {
+  opacity: 0.55;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.editor-text textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The paper: the same jianpu as on the glass, on a darker, flatter sheet. */
+.editor-sheet {
+  --j-slot: 36px;
+  --j-ink: rgba(238, 244, 255, 0.94);
+  --j-ink-dim: rgba(200, 212, 232, 0.6);
+  flex: 1;
+  min-height: 80px;
+  overflow-y: auto;
+  padding: 0.3em 1.2em 0.9em;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  background: rgba(8, 10, 14, 0.55);
+  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.5);
+  color: var(--j-ink);
+  font-size: calc(var(--j-slot) * 0.5);
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+  scrollbar-width: thin;
+  scrollbar-color: #4a4e57 transparent;
+}
+
+.editor-sheet .j-glyph {
+  cursor: text;
+}
+
+@media (hover: hover) {
+  .editor-sheet .j-glyph:hover .j-main {
+    color: #fff;
+  }
+}
+
+.editor-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0.8em 0 0;
+  font-size: 0.7em;
+  color: var(--j-ink-dim);
+}
+
+/* Text cursor between notes. */
+.j-caret {
+  position: absolute;
+  top: 0.3em;
+  height: 1.35em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(108, 196, 255, 0.7);
+  animation: caret-blink 1.1s steps(1) infinite;
+  pointer-events: none;
+}
+
+.j-caret--before {
+  left: -1px;
+}
+
+.j-caret--after {
+  right: -1px;
+}
+
+.j-caret--inline {
+  position: static;
+  display: inline-block;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.editor-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-height: 20px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.editor-keys kbd + kbd {
+  margin-left: 2px;
+}
+
+.editor-message {
+  color: var(--warm);
+}
+
+.editor-text summary {
+  width: fit-content;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.editor-text textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  background: rgba(8, 10, 14, 0.6);
+  color: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  user-select: text;
+}
+
+.editor-errors {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor,
+  .j-caret {
+    animation: none;
+  }
 }

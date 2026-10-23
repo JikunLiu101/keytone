@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { engine, keyboard, keyboardWindow, layoutOverride, pointers, scorePage, settings } from "../app/services";
 import { shouldUseCompact } from "../view/viewport";
 import { codeLabel } from "../core/keymap";
@@ -9,13 +9,15 @@ import { ControlPanel } from "./ControlPanel";
 import { CreditsDialog } from "./CreditsDialog";
 import { KeyboardNav } from "./KeyboardNav";
 import { KeyboardView, layout } from "./KeyboardView";
+import { ScoreEditor } from "./ScoreEditor";
 
-type DialogName = "bindings" | "credits" | null;
+type DialogName = "bindings" | "credits" | "editor" | null;
 
 export function App() {
   const t = useT();
   const { bindings, panelCollapsed: settingsCollapsed } = useSettings();
   const [dialog, setDialog] = useState<DialogName>(null);
+  const closeDialog = useCallback(() => setDialog(null), []);
   const dialogRef = useRef<DialogName>(null);
   dialogRef.current = dialog;
   const mainRef = useRef<HTMLElement>(null);
@@ -122,7 +124,11 @@ export function App() {
 
   return (
     <div className="app" data-compact={compact || undefined}>
-      <ControlPanel onOpenBindings={() => setDialog("bindings")} onOpenCredits={() => setDialog("credits")} />
+      <ControlPanel
+        onOpenBindings={() => setDialog("bindings")}
+        onOpenCredits={() => setDialog("credits")}
+        onOpenEditor={() => setDialog("editor")}
+      />
 
       <main className="main" ref={mainRef}>
         {compact && visible < layout.whiteCount && <KeyboardNav layout={layout} />}
@@ -150,6 +156,7 @@ export function App() {
 
       {dialog === "bindings" && <BindingsDialog onClose={() => setDialog(null)} />}
       {dialog === "credits" && <CreditsDialog onClose={() => setDialog(null)} />}
+      {dialog === "editor" && <ScoreEditor onClose={closeDialog} />}
     </div>
   );
 }
