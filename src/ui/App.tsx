@@ -15,7 +15,7 @@ type DialogName = "bindings" | "credits" | "editor" | null;
 
 export function App() {
   const t = useT();
-  const { bindings, panelCollapsed: settingsCollapsed } = useSettings();
+  const { bindings, panelCollapsed: settingsCollapsed, scoreView } = useSettings();
   const [dialog, setDialog] = useState<DialogName>(null);
   const closeDialog = useCallback(() => setDialog(null), []);
   const dialogRef = useRef<DialogName>(null);
@@ -79,7 +79,7 @@ export function App() {
 
   // Switching layout or opening/closing the panel moves the stage; re-measure
   // right away instead of waiting for the next resize notification.
-  useLayoutEffect(() => updateStage.current(), [compact, settingsCollapsed]);
+  useLayoutEffect(() => updateStage.current(), [compact, settingsCollapsed, scoreView]);
 
   // Mobile browsers only start audio inside certain gestures (touchend,
   // click); try on each until it works. Release fingers if the page loses
@@ -123,7 +123,7 @@ export function App() {
   };
 
   return (
-    <div className="app" data-compact={compact || undefined}>
+    <div className="app" data-compact={compact || undefined} data-score-view={scoreView}>
       <ControlPanel
         onOpenBindings={() => setDialog("bindings")}
         onOpenCredits={() => setDialog("credits")}

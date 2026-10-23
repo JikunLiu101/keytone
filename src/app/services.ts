@@ -32,7 +32,15 @@ export const settings = createStore<Settings>(
  * wider than the screen; `scroll` is the first visible white key and
  * `visible` how many white keys fit.
  */
-export const keyboardWindow = createStore({ compact: false, scroll: 0, visible: 38, ready: false, stageHeight: 0 });
+export const keyboardWindow = createStore({
+  compact: false,
+  scroll: 0,
+  visible: 38,
+  ready: false,
+  stageHeight: 0,
+  /** Set when the user moves the window themselves; pauses auto-follow until the song restarts. */
+  manual: false,
+});
 
 /** Jianpu page on the glass, and how many pages the current score has. */
 export const scorePage = createStore({ page: 0, count: 1 });

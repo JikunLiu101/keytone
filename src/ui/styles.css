@@ -1059,6 +1059,8 @@ kbd {
  * front-on. A thumbnail strip above (.kb-nav) moves the window.
  */
 .app[data-compact] .stage {
+  /* Clips the sliding keyboard. Chrome also ignores taps on anything sticking
+     out above a clipped box, so the score overlay lives outside the stage. */
   overflow-x: clip;
 }
 
@@ -2169,4 +2171,164 @@ kbd {
   .fall-done {
     animation: none;
   }
+}
+
+/* ---------- Score views on phones (compact layout) ---------- */
+
+/* Falling-notes controls and messages, wherever they are placed. */
+.fall-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * Screen-fixed layer over the stage. On a desktop it is empty; on phones the
+ * keyboard slides sideways, so the sheet and play controls sit here, over
+ * the lit part of the glass, instead of on the glass itself.
+ */
+.stage-overlay {
+  position: absolute;
+  top: 0;
+  /* .main's 24px gutter + the keyboard body's 12px rim. */
+  left: 36px;
+  right: 36px;
+  height: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+
+/* No computer keyboard and no editing on phones. */
+.app[data-compact] .latch--key-hints,
+.app[data-compact] .score-edit-btn {
+  display: none;
+}
+
+/*
+ * Falling notes on a phone need room to fall: the keys get a little shorter
+ * so the glass grows, and the controls shrink to a pill in the top-right
+ * corner so the bars stay visible across the width.
+ */
+.app[data-compact][data-score-view="falling"] .keyboard-body {
+  --white-h: clamp(96px, calc(var(--main-h, 360px) * 0.36), 220px);
+}
+
+.app[data-compact] .fall-bar {
+  top: 4px;
+  left: auto;
+  right: 0;
+  padding: 3px;
+  gap: 4px;
+  font-size: 12px;
+  background: rgba(14, 16, 22, 0.6);
+}
+
+.app[data-compact] .fall-bar .sheet-meta,
+.app[data-compact] .fall-title {
+  display: none;
+}
+
+.app[data-compact] .fall-btn {
+  width: 34px;
+  height: 34px;
+}
+
+.app[data-compact] .fall-count {
+  font-size: 40px;
+}
+
+.app[data-compact] .fall-done {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  padding: 8px 16px;
+}
+
+.app[data-compact] .fall-done-title {
+  font-size: 18px;
+}
+
+/*
+ * Phones: one row of jianpu over the glass. The title and meta are dropped
+ * (the panel shows the song); restart, pages and hide sit at the right.
+ */
+.sheet--compact {
+  --j-size: clamp(11px, calc(var(--j-slot) * 0.5), 17px);
+  top: 50%;
+  bottom: auto;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.15em 0.4em 0.15em 0.8em;
+  background: rgba(22, 26, 34, 0.82);
+}
+
+.sheet--compact .sheet-head {
+  order: 2;
+  flex: none;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-size: 0.75em;
+}
+
+.sheet--compact .sheet-title,
+.sheet--compact .sheet-meta,
+.sheet--compact .sheet-page-num {
+  display: none;
+}
+
+.sheet--compact .sheet-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sheet--compact .j-line {
+  margin-top: 0;
+}
+
+.sheet--compact .sheet-complete {
+  flex-direction: row;
+}
+
+.sheet-toggle {
+  order: 3;
+  flex: none;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--j-ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Hidden: only a small "Show score" pill stays, at the right. */
+.sheet--hidden {
+  left: auto;
+  right: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+}
+
+.sheet--hidden .sheet-head,
+.sheet--hidden .sheet-body,
+.sheet--hidden .sheet-complete {
+  display: none;
+}
+
+.sheet--hidden .sheet-toggle {
+  font-size: 13px;
+  background: rgba(22, 26, 34, 0.82);
 }

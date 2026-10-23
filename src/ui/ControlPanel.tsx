@@ -236,7 +236,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           </select>
         </label>
         <button
-          className={`latch ${s.scoreKeyHints ? "latch--on" : ""}`}
+          className={`latch latch--key-hints ${s.scoreKeyHints ? "latch--on" : ""}`}
           role="switch"
           aria-checked={s.scoreKeyHints}
           disabled={s.scoreView !== "jianpu"}
@@ -256,7 +256,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           <span className="led" aria-hidden="true" />
           {t("score.practice")}
         </button>
-        <button className="button button--ghost" onClick={onOpenEditor}>
+        <button className="button button--ghost score-edit-btn" onClick={onOpenEditor}>
           {t("score.edit")}
         </button>
       </div>

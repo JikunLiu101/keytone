@@ -50,7 +50,7 @@ export function useCurrentScore() {
  * The jianpu sheet standing on the glass: header, as many lines as fit, and
  * page buttons. Light bars keep glowing through it from behind.
  */
-export function ScoreSheet({ whiteCount }: { whiteCount: number }) {
+export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number; compact?: boolean }) {
   const t = useT();
   const { scoreKeyHints, practice } = useSettings();
   const resolved = useCurrentScore();
@@ -58,18 +58,26 @@ export function ScoreSheet({ whiteCount }: { whiteCount: number }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // One slot (a note's width) is one white key.
+  // One slot (a note's width) is one white key, measured from the keys themselves.
   const [slot, setSlot] = useState(0);
   useLayoutEffect(() => {
-    const pane = sheetRef.current?.parentElement;
-    if (!pane) return;
-    const measure = () => setSlot(pane.clientWidth / whiteCount);
+    const keys = document.querySelector<HTMLElement>(".keys");
+    if (!keys) return;
+    // Phone keys are wide; a narrower slot fits a few bars per row there.
+    const measure = () => setSlot((keys.offsetWidth / whiteCount) * (compact ? 0.62 : 1));
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(pane);
+    observer.observe(keys);
     return () => observer.disconnect();
-  }, [whiteCount]);
-  const size = useSheetSize(bodyRef, slot, [scoreKeyHints]);
+  }, [whiteCount, compact]);
+  // Phones: no computer keyboard, so no key hints; one line at a time.
+  const hints = scoreKeyHints && !compact;
+  const [hidden, setHidden] = useState(false);
+  const measured = useSheetSize(bodyRef, slot, [hints, hidden]);
+  const size = useMemo(
+    () => (compact ? { slotsPerLine: measured.slotsPerLine, linesPerPage: 1 } : measured),
+    [compact, measured],
+  );
 
   const layout = useMemo(() => layoutJianpu(score, size), [score, size]);
   const { page } = useSyncExternalStore(scorePage.subscribe, scorePage.get);
@@ -127,10 +135,21 @@ export function ScoreSheet({ whiteCount }: { whiteCount: number }) {
   return (
     <div
       ref={sheetRef}
-      className="sheet"
-      data-hints={scoreKeyHints || undefined}
+      className={`sheet ${compact ? "sheet--compact" : ""} ${hidden ? "sheet--hidden" : ""}`}
+      data-hints={hints || undefined}
       style={slot ? { ["--j-slot" as string]: `${slot}px` } : undefined}
     >
+      {compact && (
+        <button
+          className="sheet-toggle"
+          onClick={() => setHidden(!hidden)}
+          aria-expanded={!hidden}
+          aria-label={hidden ? t("score.show") : t("score.hide")}
+          title={hidden ? t("score.show") : t("score.hide")}
+        >
+          {hidden ? t("score.show") : "×"}
+        </button>
+      )}
       <header className="sheet-head">
         <span className="sheet-title">{resolved.title}</span>
         <ScoreMeta score={score} />

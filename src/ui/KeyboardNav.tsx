@@ -20,7 +20,7 @@ export function KeyboardNav({ layout }: { layout: KeyboardLayout }) {
   const moveTo = (clientX: number) => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    keyboardWindow.set({ scroll: scrollForPointer((clientX - box.left) / box.width, win.visible, total) });
+    keyboardWindow.set({ scroll: scrollForPointer((clientX - box.left) / box.width, win.visible, total), manual: true });
   };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
@@ -44,7 +44,7 @@ export function KeyboardNav({ layout }: { layout: KeyboardLayout }) {
     const step = { ArrowLeft: -1, ArrowRight: 1, PageUp: -7, PageDown: 7 }[e.key];
     if (step === undefined) return;
     e.preventDefault();
-    keyboardWindow.set({ scroll: clampScroll(Math.round(win.scroll) + step, win.visible, total) });
+    keyboardWindow.set({ scroll: clampScroll(Math.round(win.scroll) + step, win.visible, total), manual: true });
   };
 
   const first = layout.keys.find((k) => !k.black && k.x >= Math.round(win.scroll));
