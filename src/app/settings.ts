@@ -6,7 +6,7 @@ import { PALETTE_IDS, type PaletteId } from "../view/palettes";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
 
 /** How the current score is shown on the glass. */
-export const SCORE_VIEWS = ["off", "jianpu"] as const;
+export const SCORE_VIEWS = ["off", "jianpu", "falling"] as const;
 export type ScoreView = (typeof SCORE_VIEWS)[number];
 
 export interface Settings {
@@ -26,6 +26,8 @@ export interface Settings {
   scoreId: string;
   /** Show the computer key under each jianpu note. */
   scoreKeyHints: boolean;
+  /** Practice mode: the score waits for the right note. */
+  practice: boolean;
   language: Language;
   bindings: KeyBindings;
   panelCollapsed: boolean;
@@ -44,6 +46,7 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     scoreView: "off",
     scoreId: DEFAULT_SCORE_ID,
     scoreKeyHints: true,
+    practice: false,
     language,
     bindings: { ...DEFAULT_BINDINGS },
     // Phones start with the panel tucked away so the keys get the room.
@@ -109,6 +112,7 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     scoreView: SCORE_VIEWS.includes(r.scoreView as ScoreView) ? (r.scoreView as ScoreView) : defaults.scoreView,
     scoreId: typeof r.scoreId === "string" && r.scoreId ? r.scoreId : defaults.scoreId,
     scoreKeyHints: typeof r.scoreKeyHints === "boolean" ? r.scoreKeyHints : defaults.scoreKeyHints,
+    practice: typeof r.practice === "boolean" ? r.practice : defaults.practice,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,

@@ -245,6 +245,17 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           <span className="led" aria-hidden="true" />
           {t("score.keyHints")}
         </button>
+        <button
+          className={`latch ${s.practice ? "latch--on" : ""}`}
+          role="switch"
+          aria-checked={s.practice}
+          disabled={s.scoreView === "off"}
+          title={t("score.practiceHelp")}
+          onClick={() => settings.set({ practice: !s.practice })}
+        >
+          <span className="led" aria-hidden="true" />
+          {t("score.practice")}
+        </button>
         <button className="button button--ghost" onClick={onOpenEditor}>
           {t("score.edit")}
         </button>
