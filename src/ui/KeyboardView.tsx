@@ -4,8 +4,9 @@ import { buildLayout, computerKeyLabels } from "../view/layout";
 import { clampScroll, defaultScroll } from "../view/viewport";
 import { engine, hub, keyboard, keyboardWindow, pointers } from "../app/services";
 import { findInstrument } from "../audio/instruments";
-import { GlassEffects } from "./GlassEffects";
+import { GlassEffects, useLcdClear } from "./GlassEffects";
 import { ScoreSheet } from "./ScoreSheet";
+import { FallingNotes } from "./FallingNotes";
 import { useSettings, useT } from "../i18n/useT";
 
 export const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
@@ -55,6 +56,8 @@ export function KeyboardView() {
   const win = useSyncExternalStore(keyboardWindow.subscribe, keyboardWindow.get);
   const stageRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<HTMLDivElement>(null);
+  const glassRef = useRef<HTMLDivElement>(null);
+  useLcdClear(glassRef);
 
   // Compact mode: work out how many white keys fit, and keep the window valid.
   useLayoutEffect(() => {
@@ -142,9 +145,9 @@ export function KeyboardView() {
         </div>
         {/* Frosted glass panel standing behind the keys; light bars rise inside it,
             and it doubles as the music stand for the jianpu sheet. */}
-        <div className="glass" data-score={scoreView !== "off" ? scoreView : undefined}>
+        <div className="glass" ref={glassRef} data-score={scoreView !== "off" ? scoreView : undefined}>
           <div className="glass-pane">
-            <GlassEffects layout={layout} />
+            {scoreView === "falling" ? <FallingNotes layout={layout} /> : <GlassEffects layout={layout} />}
             <div className="glass-frost" aria-hidden="true" />
             {scoreView === "jianpu" && <ScoreSheet whiteCount={layout.whiteCount} />}
           </div>

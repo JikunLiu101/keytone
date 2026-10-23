@@ -314,7 +314,7 @@ Chosen in the control panel: **Jianpu / Falling / Off**. Default Off.
   - Pages turn with ◀ ▶ buttons or PageUp / PageDown (automatic in practice mode).
 - **Falling notes**. Inverted light bars fall from the top of the glass towards their keys, replacing the rising bars.
   - A bar's length follows the note's duration; colour follows the light palette. No key labels.
-  - Hit: the bar bursts into light and motes at the bottom edge. Missed: it falls past and fades. Wrong key: a faint flash at that key.
+  - Every bar keeps falling and sinks into the bottom edge. Hit: light and motes burst up from the key as it does. Missed: it dims as it sinks. Wrong key: a faint flash at that key.
   - Only hit / wrong / missed are judged, never how long a key is held. A press within about ±0.25 s of the bar reaching the bottom edge counts as a hit.
   - Transport: start/pause, restart, speed 50–150 %, loop switch, one-bar count-in. The app never plays the notes itself.
   - At the end: "Complete" with `perfect: 42, missing: 3` (Chinese: 完美 / 失误). No grades.

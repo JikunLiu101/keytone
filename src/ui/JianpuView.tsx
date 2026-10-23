@@ -84,19 +84,21 @@ function PitchDigits({ pitches }: { pitches: Pitch[] }) {
 
 interface GlyphProps {
   glyph: Glyph;
+  /** Practice: "current" is the note to play next, "played" is behind it. */
+  practice?: "current" | "played" | "miss";
   /** Draw the editor cursor just before (or after) this glyph. */
   caretBefore?: boolean;
   caretAfter?: boolean;
   onPick?: (cursor: number) => void;
 }
 
-function GlyphView({ glyph, caretBefore, caretAfter, onPick }: GlyphProps) {
+function GlyphView({ glyph, practice, caretBefore, caretAfter, onPick }: GlyphProps) {
   const single = glyph.type === "note" && glyph.pitches.length === 1 ? glyph.pitches[0] : null;
   const high = single && single.octave > 0 ? single.octave : 0;
   const low = single && single.octave < 0 ? -single.octave : 0;
   return (
     <span
-      className={`j-glyph j-glyph--${glyph.type}`}
+      className={`j-glyph j-glyph--${glyph.type}${practice ? ` j-glyph--${practice}` : ""}`}
       data-event={glyph.event}
       onPointerDown={
         onPick
@@ -133,6 +135,14 @@ function GlyphView({ glyph, caretBefore, caretAfter, onPick }: GlyphProps) {
   );
 }
 
+function practiceClass(g: Glyph, current: number | undefined, miss?: boolean): GlyphProps["practice"] {
+  if (current === undefined) return undefined;
+  // Complete (−1): everything has been played.
+  if (current < 0 || g.event < current) return "played";
+  if (g.event === current && g.type !== "dash") return miss ? "miss" : "current";
+  return undefined;
+}
+
 export function lineSlots(bars: Bar[]): number {
   return bars.reduce((n, b) => n + barGlyphs(b) + BAR_OVERHEAD, 0);
 }
@@ -143,13 +153,16 @@ interface LinesProps {
   endsScore: boolean;
   /** The widest line's slots: sets the note spacing so short lines don't stretch. */
   widest: number;
+  /** Practice: the event to play next (−1 when complete), and whether to flash a wrong press. */
+  current?: number;
+  miss?: boolean;
   /** Editor cursor (insertion point between events); omit on the sheet. */
   cursor?: number;
   eventCount?: number;
   onPick?: (cursor: number) => void;
 }
 
-export function JianpuLines({ lines, endsScore, widest, cursor, eventCount = 0, onPick }: LinesProps) {
+export function JianpuLines({ lines, endsScore, widest, current, miss, cursor, eventCount = 0, onPick }: LinesProps) {
   return (
     <>
       {lines.map((line, li) => {
@@ -180,7 +193,14 @@ export function JianpuLines({ lines, endsScore, widest, cursor, eventCount = 0, 
                         gi === bar.groups.length - 1 &&
                         k === group.length - 1;
                       return (
-                        <GlyphView key={k} glyph={g} caretBefore={caretBefore} caretAfter={caretAfter} onPick={onPick} />
+                        <GlyphView
+                          key={k}
+                          glyph={g}
+                          practice={practiceClass(g, current, miss)}
+                          caretBefore={caretBefore}
+                          caretAfter={caretAfter}
+                          onPick={onPick}
+                        />
                       );
                     })}
                   </span>

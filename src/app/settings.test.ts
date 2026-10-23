@@ -81,9 +81,11 @@ describe("sanitize", () => {
 
   it("keeps score settings and rejects bad ones", () => {
     expect(defaults.scoreView).toBe("off");
-    expect(sanitize({ scoreView: "jianpu", scoreKeyHints: false }, defaults)).toMatchObject({
+    expect(defaults.practice).toBe(false);
+    expect(sanitize({ scoreView: "jianpu", scoreKeyHints: false, practice: true }, defaults)).toMatchObject({
       scoreView: "jianpu",
       scoreKeyHints: false,
+      practice: true,
     });
     expect(sanitize({ scoreView: "staff", scoreId: "" }, defaults)).toMatchObject({
       scoreView: "off",

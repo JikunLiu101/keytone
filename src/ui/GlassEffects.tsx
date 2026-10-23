@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { hub, settings } from "../app/services";
 import { useSettings } from "../i18n/useT";
 import { EffectsRenderer, type AnchorSet } from "../view/effects-renderer";
@@ -16,30 +16,6 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
   const { effects, lightPalette } = useSettings();
   const rendererRef = useRef<EffectsRenderer | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Keep the lit pane clear of the LCD strip: measure how tall the strip
-  // looks through the glass and expose it as --lcd-clear (glass pixels).
-  useEffect(() => {
-    const glass = canvasRef.current?.closest<HTMLElement>(".glass");
-    const strip = document.querySelector<HTMLElement>(".keyboard-top");
-    if (!glass || !strip) return;
-    const update = () => {
-      const g = glass.getBoundingClientRect();
-      const s = strip.getBoundingClientRect();
-      const scale = g.height / (glass.clientHeight || 1);
-      const clear = Math.max(0, (g.bottom - s.top) / (scale || 1));
-      glass.style.setProperty("--lcd-clear", `${Math.round(clear)}px`);
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(strip);
-    observer.observe(glass);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,4 +58,33 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
   }, [lightPalette]);
 
   return <canvas ref={canvasRef} className="glass-canvas" aria-hidden="true" />;
+}
+
+/**
+ * Keep the glass's lit pane clear of the LCD strip behind it: measure how
+ * tall the strip looks through the glass and expose it as --lcd-clear
+ * (glass pixels). Runs for every glass view (rising bars, sheet, falling).
+ */
+export function useLcdClear(glassRef: RefObject<HTMLElement | null>): void {
+  useEffect(() => {
+    const glass = glassRef.current;
+    const strip = document.querySelector<HTMLElement>(".keyboard-top");
+    if (!glass || !strip) return;
+    const update = () => {
+      const g = glass.getBoundingClientRect();
+      const s = strip.getBoundingClientRect();
+      const scale = g.height / (glass.clientHeight || 1);
+      const clear = Math.max(0, (g.bottom - s.top) / (scale || 1));
+      glass.style.setProperty("--lcd-clear", `${Math.round(clear)}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(strip);
+    observer.observe(glass);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [glassRef]);
 }
