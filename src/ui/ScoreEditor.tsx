@@ -30,6 +30,8 @@ import {
   type TimeSignature,
 } from "../score/score";
 import { CloseIcon } from "./icons";
+import { Select } from "./Select";
+import { showToast } from "./Toast";
 import { JianpuLines, keyLabel, lineSlots } from "./JianpuView";
 import { useCurrentScore, useSheetSize } from "./ScoreSheet";
 
@@ -100,10 +102,29 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 2400);
   };
 
+  // Every change is saved straight away; the time shows that it was.
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  useEffect(() => setSavedAt(null), [resolved.id]);
   const commit = (next: EditorState) => {
     setState(next);
-    if (!readOnly) updateScoreData(resolved.id, next.score);
+    if (!readOnly) {
+      updateScoreData(resolved.id, next.score);
+      setSavedAt(new Date());
+    }
   };
+
+  /** Save button and Ctrl/⌘+S: writes the score again and confirms it. */
+  const save = () => {
+    if (readOnly) {
+      showToast(t("editor.cantSaveBuiltin"));
+      return;
+    }
+    updateScoreData(resolved.id, stateRef.current.score);
+    setSavedAt(new Date());
+    showToast(t("editor.saved").replace("{title}", stateRef.current.score.title || untitled(language)));
+  };
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   const apply = (action: EditorAction) => {
     if (readOnly) return;
@@ -132,6 +153,12 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       return Math.max(-MAX_OCTAVE_SHIFT, Math.min(MAX_OCTAVE_SHIFT, shift));
     };
     const onDown = (e: KeyboardEvent) => {
+      // Ctrl/⌘+S saves (even from a text field) instead of saving the web page.
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyS") {
+        e.preventDefault();
+        saveRef.current();
+        return;
+      }
       if (e.key === "Escape") {
         onClose();
         return;
@@ -244,32 +271,24 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     <div className="editor" ref={rootRef} tabIndex={-1} role="dialog" aria-modal="false" aria-label={t("editor.title")}>
       <header className="editor-head">
         <h2 className="editor-heading">{t("editor.title")}</h2>
-        <label className="score-select">
-          <span className="visually-hidden">{t("score.choose")}</span>
-          <select value={resolved.id} onChange={(e) => select(e.target.value)}>
-            <optgroup label={t("editor.builtins")}>
-              {listScores(language)
-                .filter((s) => s.builtin)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-            </optgroup>
-            {listScores(language).some((s) => !s.builtin) && (
-              <optgroup label={t("editor.mine")}>
-                {listScores(language)
-                  .filter((s) => !s.builtin)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-          </select>
-        </label>
+        <Select
+          className="score-select"
+          label={t("score.choose")}
+          value={resolved.id}
+          onChange={select}
+          options={listScores(language).map((e) => ({
+              value: e.id,
+              label: e.title,
+              group: t(e.builtin ? "editor.builtins" : "editor.mine"),
+            }))}
+        />
         <div className="editor-actions">
+          <span className="editor-saved" aria-live="polite">
+            {readOnly ? "" : savedAt ? t("editor.autoSavedAt").replace("{time}", savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })) : t("editor.autoSave")}
+          </span>
+          <button className="button editor-save" onClick={save} disabled={readOnly} title={t("editor.saveHint")}>
+            {t("editor.save")}
+          </button>
           <button className="button button--ghost" onClick={onNew}>
             {t("editor.new")}
           </button>
@@ -328,27 +347,23 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         </label>
         <label className="field">
           <span className="control-label">{t("editor.fieldKey")}</span>
-          <select value={state.score.key} disabled={readOnly} onChange={(e) => setMeta({ key: e.target.value as KeyName })}>
-            {KEY_NAMES.map((k) => (
-              <option key={k} value={k}>
-                1={keyLabel(k)}
-              </option>
-            ))}
-          </select>
+          <Select
+            label={t("editor.fieldKey")}
+            value={state.score.key}
+            disabled={readOnly}
+            onChange={(key: KeyName) => setMeta({ key })}
+            options={KEY_NAMES.map((k) => ({ value: k, label: `1=${keyLabel(k)}` }))}
+          />
         </label>
         <label className="field">
           <span className="control-label">{t("editor.fieldTime")}</span>
-          <select
+          <Select
+            label={t("editor.fieldTime")}
             value={state.score.time}
             disabled={readOnly}
-            onChange={(e) => setMeta({ time: e.target.value as TimeSignature, pickup: 0 })}
-          >
-            {TIME_SIGNATURES.map((ts) => (
-              <option key={ts} value={ts}>
-                {ts}
-              </option>
-            ))}
-          </select>
+            onChange={(time: TimeSignature) => setMeta({ time, pickup: 0 })}
+            options={TIME_SIGNATURES.map((ts) => ({ value: ts, label: ts }))}
+          />
         </label>
         <label className="field">
           <span className="control-label">{t("editor.fieldTempo")}</span>
@@ -366,17 +381,16 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         </label>
         <label className="field" title={t("editor.pickupHelp")}>
           <span className="control-label">{t("editor.fieldPickup")}</span>
-          <select
+          <Select
+            label={t("editor.fieldPickup")}
             value={state.score.pickup}
             disabled={readOnly}
-            onChange={(e) => setMeta({ pickup: Number(e.target.value) })}
-          >
-            {pickupChoices.map((b) => (
-              <option key={b} value={b}>
-                {b === 0 ? t("editor.pickupNone") : t("editor.pickupBeats").replace("{n}", String(b))}
-              </option>
-            ))}
-          </select>
+            onChange={(pickup: number) => setMeta({ pickup })}
+            options={pickupChoices.map((b) => ({
+              value: b,
+              label: b === 0 ? t("editor.pickupNone") : t("editor.pickupBeats").replace("{n}", String(b)),
+            }))}
+          />
         </label>
       </div>
 

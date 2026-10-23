@@ -7,6 +7,8 @@ const TEXT_INPUT_TYPES = new Set(["text", "search", "email", "url", "tel", "pass
 export function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.isContentEditable || target.tagName === "TEXTAREA" || target.tagName === "SELECT") return true;
+  // An open dropdown list takes arrows, Enter and type-to-jump letters.
+  if (target.getAttribute("role") === "listbox") return true;
   return target instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(target.type);
 }
 

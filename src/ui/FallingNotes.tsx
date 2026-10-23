@@ -8,6 +8,7 @@ import { FallingRenderer } from "../view/falling-renderer";
 import type { KeyboardLayout } from "../view/layout";
 import { clampScroll } from "../view/viewport";
 import { ScoreMeta } from "./JianpuView";
+import { Select } from "./Select";
 import { useCurrentScore } from "./ScoreSheet";
 
 const SPEEDS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
@@ -226,16 +227,13 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
           <button className="fall-btn" onClick={restart} disabled={empty} aria-label={t("score.restart")} title={t("score.restart")}>
             <RestartIcon />
           </button>
-          <label className="fall-speed" title={t("fall.speed")}>
-            <span className="visually-hidden">{t("fall.speed")}</span>
-            <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-              {SPEEDS.map((v) => (
-                <option key={v} value={v}>
-                  {Math.round(v * 100)}%
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            className="fall-speed"
+            label={t("fall.speed")}
+            value={speed}
+            onChange={setSpeed}
+            options={SPEEDS.map((v) => ({ value: v, label: `${Math.round(v * 100)}%` }))}
+          />
           <button
             className={`fall-btn ${loop ? "fall-btn--on" : ""}`}
             role="switch"
