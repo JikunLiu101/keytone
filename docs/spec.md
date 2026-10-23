@@ -366,8 +366,11 @@ pickup: 1
 - The chosen score and score settings persist.
 
 ### 10.7 Mobile
-- View only, no editing. The jianpu shows one line and can be hidden.
-- In falling mode the keyboard window follows upcoming notes. A manual drag on the thumbnail strip pauses this until the score restarts.
+- View only, no editing: the editor button and key hints are hidden.
+- The keyboard (and its glass) slides sideways on phones, so the sheet and play controls sit on a screen-fixed layer placed over the lit part of the glass.
+- The jianpu shows one row (narrower note slots than on desktop), with restart, page and hide buttons at the right; hidden, it leaves a small "Show score" pill.
+- Falling mode makes the keys a little shorter so the glass has room, and shrinks the play controls to a pill in the top-right corner.
+- In falling mode the keyboard window slides to the notes due in the next ~1.2 s. Dragging the thumbnail strip pauses this until the song is started again.
 
 ### 10.8 Not in this version
 Staff notation, MIDI / MusicXML import, auto-play demo, grades, lyrics (reserved in the format), link sharing, editing on phones.

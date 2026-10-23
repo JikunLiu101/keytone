@@ -1,4 +1,5 @@
-import { memo, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type PointerEvent } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
+import { createPortal } from "react-dom";
 import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
 import { clampScroll, defaultScroll } from "../view/viewport";
@@ -57,6 +58,36 @@ export function KeyboardView() {
   const stageRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<HTMLDivElement>(null);
   const glassRef = useRef<HTMLDivElement>(null);
+  // Screen-fixed layer over the stage: on phones the keyboard (and its glass)
+  // slides sideways, so the sheet and play controls live here instead.
+  const [overlay, setOverlay] = useState<HTMLDivElement | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => setHost(stageRef.current?.parentElement ?? null), []);
+
+  // Place the overlay exactly over the lit part of the glass as it appears on
+  // screen (the glass is tilted in 3D, so this is measured, not computed).
+  useLayoutEffect(() => {
+    const host = overlay?.parentElement;
+    const pane = glassRef.current?.querySelector<HTMLElement>(".glass-pane");
+    if (!win.compact || !overlay || !host || !pane) return;
+    const place = () => {
+      const s = host.getBoundingClientRect();
+      const p = pane.getBoundingClientRect();
+      overlay.style.top = `${Math.round(p.top - s.top)}px`;
+      overlay.style.height = `${Math.round(p.height)}px`;
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(host);
+    observer.observe(pane);
+    window.addEventListener("resize", place);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", place);
+      overlay.style.top = "";
+      overlay.style.height = "";
+    };
+  }, [win.compact, win.stageHeight, overlay]);
   useLcdClear(glassRef);
 
   // Compact mode: work out how many white keys fit, and keep the window valid.
@@ -147,13 +178,26 @@ export function KeyboardView() {
             and it doubles as the music stand for the jianpu sheet. */}
         <div className="glass" ref={glassRef} data-score={scoreView !== "off" ? scoreView : undefined}>
           <div className="glass-pane">
-            {scoreView === "falling" ? <FallingNotes layout={layout} /> : <GlassEffects layout={layout} />}
+            {scoreView === "falling" ? (
+              <FallingNotes layout={layout} overlay={win.compact ? overlay : null} />
+            ) : (
+              <GlassEffects layout={layout} />
+            )}
             <div className="glass-frost" aria-hidden="true" />
-            {scoreView === "jianpu" && <ScoreSheet whiteCount={layout.whiteCount} />}
+            {scoreView === "jianpu" && !win.compact && <ScoreSheet whiteCount={layout.whiteCount} />}
           </div>
         </div>
         <div className="glass-rail" aria-hidden="true" />
       </div>
+      {/* The overlay sits in the stage's parent: the stage clips sideways, and
+          Chrome would drop taps on anything poking out of a clipped box. */}
+      {host &&
+        createPortal(
+          <div className="stage-overlay" ref={setOverlay}>
+            {scoreView === "jianpu" && win.compact && <ScoreSheet whiteCount={layout.whiteCount} compact />}
+          </div>,
+          host,
+        )}
     </div>
   );
 }
