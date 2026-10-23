@@ -81,5 +81,5 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
     rendererRef.current?.setPalette(lightPalette);
   }, [lightPalette]);
 
-  return <canvas ref={canvasRef} className="glass-canvas" />;
+  return <canvas ref={canvasRef} className="glass-canvas" aria-hidden="true" />;
 }

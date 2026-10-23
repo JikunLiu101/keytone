@@ -79,6 +79,18 @@ describe("sanitize", () => {
     expect(sanitize({ lightPalette: "rainbow" }, defaults).lightPalette).toBe("aurora");
   });
 
+  it("keeps score settings and rejects bad ones", () => {
+    expect(defaults.scoreView).toBe("off");
+    expect(sanitize({ scoreView: "jianpu", scoreKeyHints: false }, defaults)).toMatchObject({
+      scoreView: "jianpu",
+      scoreKeyHints: false,
+    });
+    expect(sanitize({ scoreView: "staff", scoreId: "" }, defaults)).toMatchObject({
+      scoreView: "off",
+      scoreId: defaults.scoreId,
+    });
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

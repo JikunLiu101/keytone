@@ -1210,3 +1210,369 @@ kbd {
     color: var(--text-dim);
   }
 }
+
+/* ---------- Score row in the panel ---------- */
+
+.panel-row--score {
+  gap: 10px 14px;
+}
+
+.segmented--plain {
+  margin-left: 0;
+}
+
+.segmented--plain .segment {
+  padding: 6px 12px;
+}
+
+.score-select select {
+  min-width: 190px;
+  padding: 6px 30px 6px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  border-radius: 6px;
+  background:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23b9bdc6' stroke-width='1.4'/></svg>") no-repeat right 10px center,
+    linear-gradient(180deg, #2a2c33 0%, #222429 100%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.score-select select:disabled,
+.latch:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Jianpu sheet on the glass ---------- */
+
+/*
+ * With a score up, the glass is a music stand: its frosting stays on, and the
+ * light bars glow more softly behind the sheet.
+ */
+.glass[data-score] {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.glass[data-score] .glass-pane::before,
+.glass[data-score] .glass-frost {
+  opacity: 1;
+}
+
+.glass[data-score="jianpu"] .glass-canvas {
+  opacity: 0.55;
+}
+
+.glass-pane {
+  container-type: size;
+}
+
+/*
+ * The sheet: a sheet of frosted paper resting on the glass. Sizes follow the
+ * pane (cqh/cqw), so it fits any glass height without overflowing.
+ */
+.sheet {
+  /* One note per slot; a slot is one white key wide (set from JS). */
+  --j-slot: 36px;
+  --j-size: clamp(11px, calc(var(--j-slot) * 0.5), 22px);
+  --j-ink: rgba(238, 244, 255, 0.94);
+  --j-ink-dim: rgba(200, 212, 232, 0.6);
+  position: absolute;
+  top: 4%;
+  bottom: 7%;
+  left: 2.5%;
+  right: 2.5%;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5em 1.2em 0.6em;
+  font-size: var(--j-size);
+  color: var(--j-ink);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(232, 240, 255, 0.11) 0%, rgba(232, 240, 255, 0.055) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 10px 30px rgba(0, 0, 0, 0.25);
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 1.2em;
+  padding-bottom: 0.35em;
+  margin-bottom: 0.2em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.62em;
+  color: var(--j-ink-dim);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sheet-title {
+  color: var(--j-ink);
+  font-size: 1.35em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  margin-right: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sheet-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1em;
+  font-size: 1.1em;
+  white-space: nowrap;
+}
+
+/* Time signature drawn stacked, as on a printed score. */
+.sheet-time {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.8em;
+  line-height: 0.95;
+  font-weight: 600;
+}
+
+.sheet-time span:first-child {
+  border-bottom: 1px solid currentColor;
+  padding: 0 0.15em;
+}
+
+.sheet-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  white-space: nowrap;
+}
+
+.sheet-page-btn {
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--j-ink);
+  font: inherit;
+  font-size: 1.15em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sheet-page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .sheet-page-btn:not(:disabled):hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.sheet-empty {
+  margin: 1em 0;
+  font-size: 0.6em;
+  color: var(--j-ink-dim);
+  text-align: center;
+}
+
+/* One line of four bars. */
+.j-line {
+  display: flex;
+  align-items: stretch;
+  margin-top: 0.8em;
+}
+
+.j-bar {
+  flex-basis: 0;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  /* Half a slot either side: with the bar line, one slot per bar. */
+  padding: 0 calc(var(--j-slot) * 0.5);
+  border-right: 1px solid rgba(238, 244, 255, 0.45);
+  /* The bar line spans the digits, not the key hints below them. */
+  border-image: linear-gradient(180deg, transparent 0.35em, rgba(238, 244, 255, 0.45) 0.35em, rgba(238, 244, 255, 0.45) 2.3em, transparent 2.3em) 1;
+}
+
+.j-spacer {
+  flex-basis: 0;
+}
+
+/* Closing double bar: thin + thick. */
+.j-bar--final {
+  border-right-width: 0;
+  border-image: none;
+  background:
+    linear-gradient(var(--j-ink), var(--j-ink)) right 0 top 0.35em / 0.14em 1.95em no-repeat,
+    linear-gradient(rgba(238, 244, 255, 0.6), rgba(238, 244, 255, 0.6)) right 0.3em top 0.35em / 1px 1.95em no-repeat;
+  padding-right: calc(var(--j-slot) * 0.5 + 0.4em);
+}
+
+/* Notes within one beat sit flush so their underlines join. */
+.j-beam {
+  display: inline-flex;
+}
+
+.j-glyph {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: var(--j-slot);
+}
+
+.j-high,
+.j-low {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.08em;
+  height: 0.35em;
+}
+
+.j-high {
+  align-items: flex-end;
+}
+
+.j-octave-dot {
+  width: 0.15em;
+  height: 0.15em;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.j-digit {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+}
+
+.j-main {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 1.15em;
+  font-weight: 500;
+  line-height: 1;
+  text-shadow: 0 0 0.4em rgba(150, 195, 255, 0.35);
+}
+
+.j-glyph--dash .j-main {
+  color: var(--j-ink-dim);
+}
+
+.j-acc {
+  font-size: 0.55em;
+  align-self: flex-start;
+  margin-right: 0.04em;
+  margin-top: 0.05em;
+}
+
+/* Augmentation dot sits to the right of the digit, mid-height. */
+.j-aug {
+  position: absolute;
+  right: -0.22em;
+  bottom: 0.18em;
+  font-size: 0.9em;
+  line-height: 0.5;
+}
+
+.j-chord {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.62em;
+  line-height: 0.95;
+}
+
+.j-chord-oct {
+  font-size: 0.6em;
+}
+
+/* Underlines: one per halving, stacked, flush with neighbours in the beam. */
+.j-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.09em;
+  height: 0.35em;
+  padding-top: 0.08em;
+}
+
+.j-underline {
+  height: 0.065em;
+  min-height: 1px;
+  margin: 0 22%;
+  background: currentColor;
+}
+
+/* Inside a beam the line runs through to the neighbouring notes. */
+.j-beam > .j-glyph:not(:first-child) .j-underline {
+  margin-left: 0;
+}
+
+.j-beam > .j-glyph:not(:last-child) .j-underline {
+  margin-right: 0;
+}
+
+/* Low octave dots go below the underlines. */
+.j-low {
+  align-items: flex-start;
+  margin-top: -0.12em;
+}
+
+.j-key {
+  display: flex;
+  justify-content: center;
+  gap: 0.3em;
+  height: 1.3em;
+  margin-top: 0.1em;
+  font-size: 0.52em;
+  line-height: 1.3;
+  font-weight: 600;
+  white-space: nowrap;
+  color: rgba(200, 214, 236, 0.72);
+}
+
+.j-hint {
+  display: inline-flex;
+  align-items: center;
+}
+
+.j-shift {
+  width: 0.62em;
+  height: 0.8em;
+  margin-right: 0.04em;
+  fill: none;
+  stroke: var(--warm);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sheet:not([data-hints]) .j-key {
+  visibility: hidden;
+  height: 0.3em;
+}

@@ -4,8 +4,9 @@ import { buildLayout, computerKeyLabels } from "../view/layout";
 import { clampScroll, defaultScroll } from "../view/viewport";
 import { engine, hub, keyboard, keyboardWindow, pointers } from "../app/services";
 import { findInstrument } from "../audio/instruments";
-import { useT } from "../i18n/useT";
 import { GlassEffects } from "./GlassEffects";
+import { ScoreSheet } from "./ScoreSheet";
+import { useSettings, useT } from "../i18n/useT";
 
 export const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
 
@@ -50,6 +51,7 @@ export function KeyboardView() {
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const instrument = status.currentId ? findInstrument(status.currentId) : undefined;
   const t = useT();
+  const { scoreView } = useSettings();
   const win = useSyncExternalStore(keyboardWindow.subscribe, keyboardWindow.get);
   const stageRef = useRef<HTMLDivElement>(null);
   const keysRef = useRef<HTMLDivElement>(null);
@@ -138,11 +140,13 @@ export function KeyboardView() {
             <Key key={key.midi} geometry={key} label={labels.get(key.midi)} down={sounding.has(key.midi)} />
           ))}
         </div>
-        {/* Frosted glass panel standing behind the keys; light bars rise inside it. */}
-        <div className="glass" aria-hidden="true">
+        {/* Frosted glass panel standing behind the keys; light bars rise inside it,
+            and it doubles as the music stand for the jianpu sheet. */}
+        <div className="glass" data-score={scoreView !== "off" ? scoreView : undefined}>
           <div className="glass-pane">
             <GlassEffects layout={layout} />
-            <div className="glass-frost" />
+            <div className="glass-frost" aria-hidden="true" />
+            {scoreView === "jianpu" && <ScoreSheet whiteCount={layout.whiteCount} />}
           </div>
         </div>
         <div className="glass-rail" aria-hidden="true" />

@@ -3,6 +3,8 @@ import { engine, hub, keyboard, settings } from "../app/services";
 import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instruments";
 import { dynamicMark } from "../core/dynamics";
 import { PALETTE_IDS } from "../view/palettes";
+import { SCORE_VIEWS } from "../app/settings";
+import { listScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
@@ -191,6 +193,47 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
           </div>
         </div>
         {indicators}
+      </div>
+
+      <div className="panel-row panel-row--score">
+        <span className="control-label">{t("panel.score")}</span>
+        <div className="segmented segmented--plain" role="radiogroup" aria-label={t("panel.score")}>
+          {SCORE_VIEWS.map((view) => (
+            <button
+              key={view}
+              role="radio"
+              aria-checked={s.scoreView === view}
+              className={`segment ${s.scoreView === view ? "segment--on" : ""}`}
+              onClick={() => settings.set({ scoreView: view })}
+            >
+              {t(`score.view.${view}`)}
+            </button>
+          ))}
+        </div>
+        <label className="score-select">
+          <span className="visually-hidden">{t("score.choose")}</span>
+          <select
+            value={s.scoreId}
+            disabled={s.scoreView === "off"}
+            onChange={(e) => settings.set({ scoreId: e.target.value })}
+          >
+            {listScores(s.language).map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          className={`latch ${s.scoreKeyHints ? "latch--on" : ""}`}
+          role="switch"
+          aria-checked={s.scoreKeyHints}
+          disabled={s.scoreView !== "jianpu"}
+          onClick={() => settings.set({ scoreKeyHints: !s.scoreKeyHints })}
+        >
+          <span className="led" aria-hidden="true" />
+          {t("score.keyHints")}
+        </button>
       </div>
     </header>
   );
