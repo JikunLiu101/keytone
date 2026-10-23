@@ -8,6 +8,7 @@ import { listScores, userScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
+import { Select } from "./Select";
 
 interface ControlPanelProps {
   onOpenBindings: () => void;
@@ -213,28 +214,18 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
             </button>
           ))}
         </div>
-        <label className="score-select">
-          <span className="visually-hidden">{t("score.choose")}</span>
-          <select
-            value={s.scoreId}
-            disabled={s.scoreView === "off"}
-            onChange={(e) => settings.set({ scoreId: e.target.value })}
-          >
-            {[true, false].map((builtin) => {
-              const entries = listScores(s.language).filter((e) => e.builtin === builtin);
-              if (!entries.length) return null;
-              return (
-                <optgroup key={String(builtin)} label={t(builtin ? "editor.builtins" : "editor.mine")}>
-                  {entries.map((entry) => (
-                    <option key={entry.id} value={entry.id}>
-                      {entry.title}
-                    </option>
-                  ))}
-                </optgroup>
-              );
-            })}
-          </select>
-        </label>
+        <Select
+          className="score-select"
+          label={t("score.choose")}
+          value={s.scoreId}
+          disabled={s.scoreView === "off"}
+          onChange={(id) => settings.set({ scoreId: id })}
+          options={listScores(s.language).map((e) => ({
+              value: e.id,
+              label: e.title,
+              group: t(e.builtin ? "editor.builtins" : "editor.mine"),
+            }))}
+        />
         <button
           className={`latch latch--key-hints ${s.scoreKeyHints ? "latch--on" : ""}`}
           role="switch"

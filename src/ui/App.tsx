@@ -10,6 +10,7 @@ import { CreditsDialog } from "./CreditsDialog";
 import { KeyboardNav } from "./KeyboardNav";
 import { KeyboardView, layout } from "./KeyboardView";
 import { ScoreEditor } from "./ScoreEditor";
+import { ToastHost } from "./Toast";
 
 type DialogName = "bindings" | "credits" | "editor" | null;
 
@@ -157,6 +158,7 @@ export function App() {
       {dialog === "bindings" && <BindingsDialog onClose={() => setDialog(null)} />}
       {dialog === "credits" && <CreditsDialog onClose={() => setDialog(null)} />}
       {dialog === "editor" && <ScoreEditor onClose={closeDialog} />}
+      <ToastHost />
     </div>
   );
 }
