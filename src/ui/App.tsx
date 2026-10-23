@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { engine, keyboard, keyboardWindow, layoutOverride, pointers } from "../app/services";
+import { engine, keyboard, keyboardWindow, layoutOverride, pointers, scorePage, settings } from "../app/services";
 import { shouldUseCompact } from "../view/viewport";
 import { codeLabel } from "../core/keymap";
 import { attachKeyboardInput } from "../input/keyboard-input";
@@ -60,6 +60,20 @@ export function App() {
       }),
     [],
   );
+
+  // PageUp / PageDown turn the jianpu sheet's pages.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== "PageUp" && e.code !== "PageDown") return;
+      if (dialogRef.current || settings.get().scoreView !== "jianpu") return;
+      const { page, count } = scorePage.get();
+      const next = Math.min(count - 1, Math.max(0, page + (e.code === "PageDown" ? 1 : -1)));
+      e.preventDefault();
+      if (next !== page) scorePage.set({ page: next });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Switching layout or opening/closing the panel moves the stage; re-measure
   // right away instead of waiting for the next resize notification.

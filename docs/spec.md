@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: version 1 (M1, M2) and version 2 implemented and deployed (2026-10-22). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1 and 2 implemented and deployed (2026-10-22); version 3 (scores, §10) in progress. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
@@ -300,3 +300,83 @@ Each step gets its own commit. All done.
 2. GitHub Pages deploy
 3. Touch input
 4. Mobile layout
+
+## 10. Version 3 Spec: Scores
+
+Agreed 2026-10-23.
+
+### 10.1 Two score views
+Chosen in the control panel: **Jianpu / Falling / Off**. Default Off.
+- **Jianpu** (numbered notation). The glass panel becomes a music stand holding a frosted, translucent sheet.
+  - Each note takes about one white key's width, with digits sized to match. Bars per line and lines per page follow the glass size (about 5–8 bars and 4 lines on a laptop screen); lines are balanced so the last one is not left with a lone bar. The header shows title, key, time signature and tempo.
+  - A switch shows the computer key under each note.
+  - Light bars still rise, dimmer, glowing through the sheet from behind.
+  - Pages turn with ◀ ▶ buttons or PageUp / PageDown (automatic in practice mode).
+- **Falling notes**. Inverted light bars fall from the top of the glass towards their keys, replacing the rising bars.
+  - A bar's length follows the note's duration; colour follows the light palette. No key labels.
+  - Hit: the bar bursts into light and motes at the bottom edge. Missed: it falls past and fades. Wrong key: a faint flash at that key.
+  - Only hit / wrong / missed are judged, never how long a key is held. A press within about ±0.25 s of the bar reaching the bottom edge counts as a hit.
+  - Transport: start/pause, restart, speed 50–150 %, loop switch, one-bar count-in. The app never plays the notes itself.
+  - At the end: "Complete" with `perfect: 42, missing: 3` (Chinese: 完美 / 失误). No grades.
+
+### 10.2 Practice mode
+Works with both views. Named "Practice" / 练习模式.
+- The note to play is highlighted; played notes dim.
+- Only a correct note advances; a wrong one does nothing.
+- Rests and extensions are skipped (no timing). A chord needs all its notes. Repeated notes each need their own press.
+- Jianpu turns the page as soon as the next note is on the next page. Falling bars stop at the bottom edge and wait.
+- At the end it shows only "Complete" / 完成.
+
+### 10.3 Editor
+A large panel over the glass and control panel; the keys stay visible below.
+- Input works like playing: digits 1–7 enter notes, `0` a rest, `-` extends the previous note by one beat.
+- Hold the octave keys (the user's bindings) for low / high octave dots.
+- `/` halves the note (press twice for a quarter beat); `.` adds a dot.
+- Arrow keys move the cursor; Backspace deletes. Every entered note is auditioned.
+- Bar lines are drawn automatically from the time signature.
+- Each score has a key (1=C … 1=B), time signature (2/4, 3/4, 4/4, 6/8) and tempo.
+- Notes outside C1–E6 are refused.
+- A text view, kept in sync, allows copy and paste. No triplets or ties.
+
+### 10.4 Pitch and key hints
+- Unshifted 1–7 in 1=C map to the Z–M row (C3–B3).
+- Other keys transpose. Key hints follow, using black keys and Shift marks where needed.
+
+### 10.5 Text format
+```
+title: Happy Birthday
+key: C
+time: 3/4
+tempo: 100
+pickup: 1
+---
+5./ 5// | 6 5 1' | 7 - - | 5./ 5// | 6 5 2' | 1' - - |
+```
+- `pickup:` (optional) beats before the first full bar, for songs that start on an upbeat.
+- `1`–`7` notes, `0` rest, `-` extends the previous note by one beat.
+- `/` halves, `//` quarters; `.` dots.
+- `'` raises an octave, `,` lowers one; they stack (`1''`).
+- `#` / `b` sharp / flat (`#4`).
+- `[1 3 5]` chord (reserved; displayed only).
+- `|` bar lines are optional; layout re-bars by the time signature.
+
+### 10.6 Library
+- Scores are stored in the browser: new, rename, duplicate, delete; import / export as `.txt`.
+- Built-in, read-only: Twinkle Twinkle Little Star and Happy Birthday. Duplicate to edit. More songs come from the user later.
+- The chosen score and score settings persist.
+
+### 10.7 Mobile
+- View only, no editing. The jianpu shows one line and can be hidden.
+- In falling mode the keyboard window follows upcoming notes. A manual drag on the thumbnail strip pauses this until the score restarts.
+
+### 10.8 Not in this version
+Staff notation, MIDI / MusicXML import, auto-play demo, grades, lyrics (reserved in the format), link sharing, editing on phones.
+
+### 10.9 Order
+Each step is shown, then committed after approval.
+1. Score format and jianpu display (glass music stand, pages, two built-in songs)
+2. Editor (digit input, audition, text view, library, import / export)
+3. Practice mode on jianpu
+4. Falling notes (bars, judging, transport, count-in, loop, practice mode)
+5. Mobile
+6. Docs and deploy

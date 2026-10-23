@@ -34,6 +34,9 @@ export const settings = createStore<Settings>(
  */
 export const keyboardWindow = createStore({ compact: false, scroll: 0, visible: 38, ready: false, stageHeight: 0 });
 
+/** Jianpu page on the glass, and how many pages the current score has. */
+export const scorePage = createStore({ page: 0, count: 1 });
+
 // Save right away so the first-visit language choice sticks, then on every change.
 saveSettings(settings.get());
 settings.subscribe(() => saveSettings(settings.get()));
@@ -65,5 +68,5 @@ settings.subscribe(applySettings);
 
 // Handy for debugging in the browser console during development.
 if (import.meta.env.DEV) {
-  Object.assign(window, { __keytone: { hub, keyboard, pointers, engine, settings, keyboardWindow } });
+  Object.assign(window, { __keytone: { hub, keyboard, pointers, engine, settings, keyboardWindow, scorePage } });
 }

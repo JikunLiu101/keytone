@@ -3,6 +3,11 @@ import { DEFAULT_INSTRUMENT_ID, findInstrument } from "../audio/instruments";
 import { DEFAULT_BINDINGS, NOTE_KEYS, type BindableAction, type KeyBindings } from "../core/keymap";
 import { detectLanguage, type Language } from "../i18n/strings";
 import { PALETTE_IDS, type PaletteId } from "../view/palettes";
+import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
+
+/** How the current score is shown on the glass. */
+export const SCORE_VIEWS = ["off", "jianpu"] as const;
+export type ScoreView = (typeof SCORE_VIEWS)[number];
 
 export interface Settings {
   instrumentId: string;
@@ -15,6 +20,12 @@ export interface Settings {
   effects: boolean;
   /** Light-bar colour family. */
   lightPalette: PaletteId;
+  /** Score display on the glass. */
+  scoreView: ScoreView;
+  /** Score shown, a built-in or library id. */
+  scoreId: string;
+  /** Show the computer key under each jianpu note. */
+  scoreKeyHints: boolean;
   language: Language;
   bindings: KeyBindings;
   panelCollapsed: boolean;
@@ -30,6 +41,9 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     reverb: true,
     effects: !reducedMotion,
     lightPalette: "aurora",
+    scoreView: "off",
+    scoreId: DEFAULT_SCORE_ID,
+    scoreKeyHints: true,
     language,
     bindings: { ...DEFAULT_BINDINGS },
     // Phones start with the panel tucked away so the keys get the room.
@@ -92,6 +106,9 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     lightPalette: PALETTE_IDS.includes(r.lightPalette as PaletteId)
       ? (r.lightPalette as PaletteId)
       : defaults.lightPalette,
+    scoreView: SCORE_VIEWS.includes(r.scoreView as ScoreView) ? (r.scoreView as ScoreView) : defaults.scoreView,
+    scoreId: typeof r.scoreId === "string" && r.scoreId ? r.scoreId : defaults.scoreId,
+    scoreKeyHints: typeof r.scoreKeyHints === "boolean" ? r.scoreKeyHints : defaults.scoreKeyHints,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,
