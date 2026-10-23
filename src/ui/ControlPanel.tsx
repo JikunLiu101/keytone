@@ -4,7 +4,7 @@ import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instru
 import { dynamicMark } from "../core/dynamics";
 import { PALETTE_IDS } from "../view/palettes";
 import { SCORE_VIEWS } from "../app/settings";
-import { listScores } from "../score/library";
+import { listScores, userScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
@@ -12,11 +12,14 @@ import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 interface ControlPanelProps {
   onOpenBindings: () => void;
   onOpenCredits: () => void;
+  onOpenEditor: () => void;
 }
 
-export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProps) {
+export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: ControlPanelProps) {
   const t = useT();
   const s = useSettings();
+  // Re-render when the user's scores change, so the menu stays current.
+  useSyncExternalStore(userScores.subscribe, userScores.get);
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const shift = useSyncExternalStore(keyboard.subscribe, keyboard.getOctaveShift);
   const sustain = useSyncExternalStore(hub.subscribe, hub.getSustain);
@@ -217,11 +220,19 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
             disabled={s.scoreView === "off"}
             onChange={(e) => settings.set({ scoreId: e.target.value })}
           >
-            {listScores(s.language).map((entry) => (
-              <option key={entry.id} value={entry.id}>
-                {entry.title}
-              </option>
-            ))}
+            {[true, false].map((builtin) => {
+              const entries = listScores(s.language).filter((e) => e.builtin === builtin);
+              if (!entries.length) return null;
+              return (
+                <optgroup key={String(builtin)} label={t(builtin ? "editor.builtins" : "editor.mine")}>
+                  {entries.map((entry) => (
+                    <option key={entry.id} value={entry.id}>
+                      {entry.title}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
           </select>
         </label>
         <button
@@ -233,6 +244,9 @@ export function ControlPanel({ onOpenBindings, onOpenCredits }: ControlPanelProp
         >
           <span className="led" aria-hidden="true" />
           {t("score.keyHints")}
+        </button>
+        <button className="button button--ghost" onClick={onOpenEditor}>
+          {t("score.edit")}
         </button>
       </div>
     </header>
