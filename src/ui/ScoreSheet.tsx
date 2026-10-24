@@ -61,7 +61,11 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   // Every beat has the same width: the line's width over N beats (spec §11.2).
   const beats = compact ? Math.max(4, Math.min(beatsPerLine, Math.floor(box.width / MIN_PHONE_BEAT))) : beatsPerLine;
   // A couple of px spare so rounding never pushes the last bar line out of view.
-  const metrics = useMemo(() => sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(score.time)), [box.width, beats, score.time]);
+  const metrics = useMemo(() => {
+    const m = sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(score.time));
+    // Phones keep the one-row sheet short enough for the glass.
+    return compact ? { ...m, font: Math.min(17, m.font) } : m;
+  }, [box.width, beats, score.time, compact]);
   const lyrics = useMemo(() => (scoreLyrics ? buildLyrics(score) : null), [score, scoreLyrics]);
   useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [hints, hidden, metrics.font, !!lyrics]);
 
@@ -143,8 +147,7 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
       ref={sheetRef}
       className={`sheet ${compact ? "sheet--compact" : ""} ${hidden ? "sheet--hidden" : ""}`}
       data-hints={hints || undefined}
-      // Phones keep the one-row sheet short enough for the glass.
-      style={{ ["--j-size" as string]: `${compact ? Math.min(17, metrics.font) : metrics.font}px` }}
+      style={{ ["--j-size" as string]: `${metrics.font}px` }}
     >
       {compact && (
         <button

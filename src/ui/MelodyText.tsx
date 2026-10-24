@@ -28,23 +28,30 @@ export function MelodyText({ score, lines, cursor, selection, highlight, label, 
     <div className="melody-text" role="textbox" aria-multiline="true" aria-readonly={readOnly} aria-label={label} tabIndex={0}>
       {lines.map((line, li) => (
         <div key={li} className="mt-line">
+          {/* A bar never breaks; a long line wraps only between bars. Real
+              spaces keep the notes apart for copying and screen readers. */}
           {line.bars.map((bar, bi) => (
-            <span key={bi} className="mt-bar">
-              {bar.groups.flat().map((g, k) => {
-                const dash = g.type === "dash";
-                const selected = !!selection && g.event >= selection[0] && g.event < selection[1];
-                const linked = !!highlight && !!g.slot && g.slot.event === highlight.event && g.slot.ext === highlight.ext;
-                const cls = `mt-tok${dash ? " mt-tok--dash" : ""}${selected ? " mt-tok--selected" : ""}${linked ? " mt-tok--linked" : ""}`;
-                return (
-                  <span key={k} className={cls} data-event={g.event} data-dash={dash || undefined}>
-                    {!readOnly && g.event === cursor && !dash && <Caret />}
-                    {dash ? "-" : writeEventHead(score.events[g.event])}
-                  </span>
-                );
-              })}
-              <span className="mt-barline" aria-hidden="true">
-                |
-              </span>
+            <span key={bi}>
+              <span className="mt-bar">
+                {bar.groups.flat().map((g, k) => {
+                  const dash = g.type === "dash";
+                  const selected = !!selection && g.event >= selection[0] && g.event < selection[1];
+                  const linked = !!highlight && !!g.slot && g.slot.event === highlight.event && g.slot.ext === highlight.ext;
+                  const cls = `mt-tok${dash ? " mt-tok--dash" : ""}${selected ? " mt-tok--selected" : ""}${linked ? " mt-tok--linked" : ""}`;
+                  return (
+                    <span key={k}>
+                      {k > 0 && " "}
+                      <span className={cls} data-event={g.event} data-dash={dash || undefined}>
+                        {!readOnly && g.event === cursor && !dash && <Caret />}
+                        {dash ? "-" : writeEventHead(score.events[g.event])}
+                      </span>
+                    </span>
+                  );
+                })}{" "}
+                <span className="mt-barline" aria-hidden="true">
+                  |
+                </span>
+              </span>{" "}
             </span>
           ))}
           {!readOnly && li === lines.length - 1 && cursor === count && <Caret />}

@@ -74,6 +74,16 @@ function deleteSelection(state: EditorState): EditorState {
 }
 
 /**
+ * What to tell the player after a paste: nothing when it all went in;
+ * otherwise why not. `result` is null when the score is read-only.
+ */
+export function pasteNotice(result: EditResult | null, errors: ParseError[]): "readOnly" | "range" | "skipped" | null {
+  if (!result) return "readOnly";
+  if (result.rejected) return "range";
+  return errors.length ? "skipped" : null;
+}
+
+/**
  * Read pasted melody text. A whole score (with a header and `---`) gives its
  * notes only. Range is not checked here: degrees are read in the target
  * score's key when inserted.
@@ -84,8 +94,13 @@ export function pasteEvents(text: string): { events: ScoreEvent[]; errors: Parse
   return { events: score.events, errors: errors.filter((e) => e.code !== "outOfRange") };
 }
 
-/** Apply `change` to the event before the cursor, if there is one. */
+/**
+ * Apply `change` to the event before the cursor, if there is one. With a
+ * selection, that is its last note, whichever way it was selected.
+ */
 function changePrevious(state: EditorState, change: (e: ScoreEvent) => ScoreEvent | null): EditResult {
+  const range = selectionRange(state);
+  if (range) state = { ...state, cursor: range[1], anchor: null };
   const index = state.cursor - 1;
   const target = state.score.events[index];
   if (!target) return { state };
@@ -142,7 +157,8 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
     case "dot":
       return changePrevious(state, (e) => ({ ...e, dotted: !e.dotted }));
     case "accidental": {
-      const target = events[state.cursor - 1];
+      const range = selectionRange(state);
+      const target = events[(range ? range[1] : state.cursor) - 1];
       if (!target || target.kind === "rest") return { state };
       const pitches = target.pitches.map((p) => ({
         ...p,

@@ -9,9 +9,11 @@ import {
   edit,
   editorActionForCode,
   pasteEvents,
+  pasteNotice,
   selectedEvents,
   selectionRange,
   type EditorAction,
+  type EditResult,
   type EditorState,
 } from "../score/editor";
 import { createHistory } from "../score/history";
@@ -189,8 +191,9 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const saveRef = useRef(save);
   saveRef.current = save;
 
-  const apply = (action: EditorAction) => {
-    if (readOnly) return;
+  /** Apply an edit; returns what happened, or null when the score is read-only. */
+  const apply = (action: EditorAction): EditResult | null => {
+    if (readOnly) return null;
     const current = stateRef.current;
     const result = edit(current, action);
     if (result.rejected) flash(t("editor.outOfRange"));
@@ -200,6 +203,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       for (const midi of result.audition) hub.press("editor", midi, settings.get().velocity);
       window.setTimeout(() => result.audition?.forEach((m) => hub.release("editor", m)), AUDITION_MS);
     }
+    return result;
   };
 
   const applyRef = useRef(apply);
@@ -299,17 +303,29 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         flash(t("editor.pasteNothing"));
         return;
       }
-      applyRef.current({ type: "insert", events });
-      const [first] = errors;
-      if (first) flash(`${t("editor.pasteSkipped")} ${t(`parse.${first.code}`).replace("{x}", first.detail ?? "")}`);
+      const notice = pasteNotice(applyRef.current({ type: "insert", events }), errors);
+      // An out-of-range paste already said so; never claim a paste that didn't happen.
+      if (notice === "readOnly") flash(t("editor.cantSaveBuiltin"));
+      else if (notice === "skipped") {
+        const [first] = errors;
+        flash(`${t("editor.pasteSkipped")} ${t(`parse.${first.code}`).replace("{x}", first.detail ?? "")}`);
+      }
     };
+    // Safari only sends copy, cut and paste events to a page with no text
+    // selection (like the melody text) when these say the page handles them.
+    const enable = (e: Event) => {
+      if (!isTyping(e.target)) e.preventDefault();
+    };
+    const enablers = ["beforecopy", "beforecut", "beforepaste"];
     document.addEventListener("copy", onCopy);
     document.addEventListener("cut", onCut);
     document.addEventListener("paste", onPaste);
+    for (const name of enablers) document.addEventListener(name, enable);
     return () => {
       document.removeEventListener("copy", onCopy);
       document.removeEventListener("cut", onCut);
       document.removeEventListener("paste", onPaste);
+      for (const name of enablers) document.removeEventListener(name, enable);
     };
   }, [t]);
 

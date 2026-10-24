@@ -249,6 +249,11 @@ export function textWidthEm(text: string): number {
   return em;
 }
 
+/** Lyrics font for a digit size: three quarters of it, but never under 11 px so the words stay readable. */
+export function lyricFont(digit: number): number {
+  return Math.max(11, 0.75 * digit);
+}
+
 /** Smallest a word is drawn before it is allowed to overlap its neighbours. */
 const MIN_LYRIC_SCALE = 0.6;
 
