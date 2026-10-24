@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Version 4 (score layout, lyrics and editor, §11) is agreed and being built. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
@@ -36,6 +36,12 @@ Keytone is a browser-only app that turns your computer keyboard into an electron
 - Scores on the glass: jianpu and falling notes
 - Practice mode
 - Score editor and local library
+
+### Version 4
+- Equal-beat score layout
+- Lyrics
+- Two-column score editor with selection, copy and paste, and undo
+- Toasts at the top of the screen
 
 ### Later
 - Self-hosted samples
@@ -315,7 +321,7 @@ Agreed 2026-10-23.
 ### 10.1 Two score views
 Chosen in the control panel: **Jianpu / Falling / Off**. Default Off.
 - **Jianpu** (numbered notation). The glass panel becomes a music stand holding a frosted, translucent sheet.
-  - Each note takes about one white key's width, with digits sized to match. Bars per line and lines per page follow the glass size (about 5–8 bars and 4 lines on a laptop screen); lines are balanced so the last one is not left with a lone bar. The header shows title, key, time signature and tempo.
+  - Each note takes about one white key's width, with digits sized to match. Bars per line and lines per page follow the glass size (about 5–8 bars and 4 lines on a laptop screen); lines are balanced so the last one is not left with a lone bar. The header shows title, key, time signature and tempo. (Version 4 replaces this layout: §11.2.)
   - A switch shows the computer key under each note.
   - Light bars still rise, dimmer, glowing through the sheet from behind.
   - Pages turn with ◀ ▶ buttons or PageUp / PageDown (automatic in practice mode).
@@ -335,7 +341,7 @@ Works with both views. Named "Practice" / 练习模式.
 - At the end it shows only "Complete" / 完成.
 
 ### 10.3 Editor
-A large panel over the glass and control panel; the keys stay visible below.
+A large panel over the glass and control panel; the keys stay visible below. (Version 4 replaces the editor's layout and text view: §11.4.)
 - Input works like playing: digits 1–7 enter notes, `0` a rest, `-` extends the previous note by one beat.
 - Hold the octave keys (the user's bindings) for low / high octave dots.
 - `/` halves the note (press twice for a quarter beat); `.` adds a dot.
@@ -380,7 +386,7 @@ pickup: 1
 - In falling mode the keyboard window slides to the notes due in the next ~1.2 s. Dragging the thumbnail strip pauses this until the song is started again.
 
 ### 10.8 Not in this version
-Staff notation, MIDI / MusicXML import, auto-play demo, grades, lyrics (reserved in the format), link sharing, editing on phones.
+Staff notation, MIDI / MusicXML import, auto-play demo, grades, lyrics (added in version 4, §11.3), link sharing, editing on phones.
 
 ### 10.9 Order
 Each step is shown, then committed after approval. All done.
@@ -390,3 +396,145 @@ Each step is shown, then committed after approval. All done.
 4. Falling notes (bars, judging, transport, count-in, loop, practice mode)
 5. Mobile
 6. Docs and deploy
+
+## 11. Version 4 Spec: Score layout, lyrics and editor
+
+Agreed 2026-10-24.
+
+### 11.1 Why
+- On the sheet, each bar is stretched to fill its line. The space between notes changes from line to line and inside a line: in Happy Birthday it goes from about 24 px to 85 px on a laptop screen. Some lines look small and crowded, others big and sparse.
+- In the editor, lines re-wrap while you type, so you lose track of where you are typing.
+- Lyrics are wanted for singing while playing, and for finding your place in a song by its words.
+- The editor needs a way to enter both melody and lyrics without losing track of either.
+
+Must not happen:
+- A bar changes width, or a line wraps differently, because of what is in it.
+- Editing the melody changes the lyrics, or editing the lyrics changes the melody.
+- A word sung over several notes stops reading as one word.
+
+### 11.2 Equal-beat layout
+Replaces the note-width layout of §10.1, on the sheet and in the editor.
+- The unit is the beat. As everywhere in this app, a beat is a quarter note, so a 6/8 bar has 3 beats. Every beat has the same width.
+- A line holds N beats. N is a setting in the control panel's score row, default 16, saved with the other settings. The builder picks the control and its range.
+- Beat width is the line width divided by N, leaving room for the bar-line gaps. Bar lines take a narrow fixed gap, not a beat. Every line of a score uses the same beat width.
+- A line holds whole bars only, as many as fit in N beats: 4 bars of 4/4, 5 bars of 3/4, 8 bars of 2/4. Beats left over stay blank at the right end. Lines are never stretched, and a bar is never split across lines. A line always holds at least one bar.
+- A pickup bar is drawn at its real length (for example 1 beat wide) and counts its real beats on the first line.
+- Each note sits centred in its own time span, capped at one beat: a quarter note in the middle of its beat, two eighths in the two halves, four sixteenths in the four quarters. A note longer than a beat (for example a dotted quarter) sits in its first beat, followed by its dot. Each `-` fills one beat. A rest sits like a note of the same length.
+- One digit size for the whole sheet, small enough that four sixteenth notes fit in one beat. All digits of a score look the same; a beat with a single note looks roomy.
+- Underlines, octave dots, accidentals and augmentation dots are drawn as now. Underlines still join within a beat.
+- Key hints stay under their notes. Where fast notes leave no room for them, the builder decides how to keep them readable.
+- On phones (one row, §10.7) the builder picks an N that keeps digits readable.
+- Pages, page turning and practice mode work as before.
+
+### 11.3 Lyrics
+One line of lyrics per score. When the same melody is sung twice with different words, the melody is written twice.
+
+**Slots**
+- Each melody note or chord is one lyric slot, and so is each `-` that holds a note or chord. Rests (`0`) are not slots, and neither is a `-` that holds a rest.
+- Lyrics fill the slots in order, one item per slot.
+
+**Writing lyrics**
+
+| Written | Means | Slots |
+|---|---|---|
+| A Chinese character | One sung syllable | 1 |
+| An English word | One sung word | 1 |
+| `-` between two letters, as in `si-lence` | The word is split across notes | 1 per part |
+| `-` on its own, or next to a Chinese character | Keep singing the previous word | 1 |
+| `0` | This note is not sung | 1 |
+| Punctuation | Stays with the previous word | 0 |
+
+- Spaces separate English words. Between Chinese characters, spaces are ignored.
+- Full-width `－` and `０`, as typed with a Chinese input method, count as `-` and `0`.
+- How other scripts (Japanese kana, Korean) and characters such as apostrophes are split is left to the builder.
+
+Example: Happy Birthday with an extra note in each half.
+```
+melody: 5./ 5// | 6 5 1' | 7 7 - 5./ 5// | 6 5 2' | 1' 1' -
+lyrics: 祝你生日快乐--祝你生日快乐--
+lyrics: hap-py birth-day to you -- hap-py birth-day to you --
+```
+
+**When they don't line up**
+- More lyrics than slots: the extra lyrics wait after the last note, dimmed. This lets you write the lyrics first and add notes later.
+- More slots than lyrics: the extra notes show no lyrics.
+- Editing the melody never changes the lyrics, and editing the lyrics never changes the melody, even when a change throws them out of line. The player fixes the alignment by hand.
+
+**Display**
+- Lyrics sit in a row under the notes, below the key hints when those are on.
+- A "Lyrics" switch next to "Key hints" hides them. It is on by default and saved with the settings.
+- Each item is centred under its note. If it is too wide, it spreads into empty space next to it; if it is still too wide, that item is drawn smaller.
+- A word split across notes: no hyphen is drawn; a thin bracket line under its parts ties them into one word. (Chosen from mockups.)
+- Keep singing (`-`): a thin line runs from the end of the word to the end of the last held slot.
+- Not sung (`0`): nothing is drawn.
+- Practice mode: the lyric of the note to play lights up with it.
+- Falling notes: no lyrics in this version.
+- Phones: lyrics show in the one-row sheet.
+
+**Text format** (extends §10.5). Lyrics follow a second `---` line:
+```
+title: Happy Birthday to You
+key: C
+time: 3/4
+tempo: 100
+pickup: 1
+---
+5./ 5// | 6 5 1' | 7 - 5./ 5// | 6 5 2' | 1' - - |
+---
+祝你生日快乐-祝你生日快乐--
+```
+- Line breaks in the lyrics part count as spaces.
+- A score without a second `---` has no lyrics, so older files still load.
+
+**Built-in songs** get lyrics in the UI language, like their titles.
+
+### 11.4 Editor
+Replaces the editor layout and text view of §10.3. The note-entry keys of §10.3 stay.
+
+**Layout**
+- The header (score menu and buttons) and the fields (title, key, time, tempo, pickup) stay at the top.
+- Below them, two columns:
+  - Left: the rendered sheet, melody and lyrics, laid out as in §11.2. All lines, scrolling.
+  - Right, top: the melody as text. Right, bottom: the lyrics as text. The lyrics box can be collapsed.
+- All of them update together as you type.
+- The old text view goes away. Import and export of `.txt` files stay, and include lyrics.
+
+**One cursor**
+- A note and its `-`s are one unit, as in the score itself. The melody cursor stops only between notes, as in §10.3: clicking a `-` puts the cursor after its note, and Backspace after a held note removes one `-` first.
+- Clicking a note on the left, or a place in the melody text, puts the cursor on that note in both.
+- Clicking a lyric on the left puts the cursor on that item in the lyrics text.
+- While the cursor is in the lyrics text, the note its item falls on is highlighted on the left and in the melody text.
+
+**Melody text.** It looks like a text box, but it edits the score.
+- It shows the melody in the text format, with bar lines and line breaks generated to match the lines on the left. A typed `|` is ignored.
+- Typing works exactly as on the left (§10.3): digits, `0`, `-`, `/`, `.`, ↑ / ↓ for sharp / flat, held octave keys, ← / →, Backspace and Delete.
+- `Ctrl/⌘+V` reads melody text in the text format and inserts it at the cursor. If the pasted text is a whole score, only its notes are used.
+- Chords (`[1 3 5]`) and notes that need a third octave mark (D6 and E6 in 1=C) can't be typed; they come in only by pasting or importing.
+
+**Selecting notes**
+- Drag on the left or in the melody text, or hold `Shift` with ← / → or a click. The selection shows on both sides. It always covers whole notes, each with its `-`s.
+- `Ctrl/⌘+C` copies the selected notes as melody text, `Ctrl/⌘+X` cuts them, and Backspace or Delete removes them.
+- Typing a note or pasting replaces the selection.
+
+**Lyrics text.** A plain text box: any language, any input method, normal selection, copy and paste. The rules are those of §11.3.
+
+**Undo.** `Ctrl/⌘+Z` undoes and `Ctrl/⌘+Shift+Z` redoes. Melody, lyrics and the fields share one history.
+
+**Warnings.** A word that falls under a melody `-`, and lyrics left over after the last slot, are marked on the left. The lyrics box says how many items are left over. The builder decides the exact look.
+
+Auto-save, auditioning entered notes, and refusing notes outside the keyboard's range work as before. Phones still have no editing.
+
+### 11.5 Toasts
+All short messages (toasts) move from the bottom of the screen to its upper part, where the player is looking: below the control panel, over the top of the glass. The builder picks the exact spot and shows it before it is committed.
+
+### 11.6 Not in this version
+More than one line of lyrics (verses), repeat signs, lyrics in the falling-notes view, automatic splitting of English words.
+
+### 11.7 Order
+Each step is shown, then committed after approval.
+1. Toasts at the top
+2. Equal-beat layout on the sheet and in the editor, with the N setting
+3. Lyrics: text format, slots, display on the sheet, practice highlight, built-in lyrics
+4. Editor: two columns, melody text with one shared cursor, selection, copy and paste, undo
+5. Editor: lyrics text, cursor link, warnings
+6. Docs (READMEs) and deploy
