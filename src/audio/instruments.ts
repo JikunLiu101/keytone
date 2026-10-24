@@ -11,15 +11,16 @@ export interface InstrumentBackend {
 
 export type CreditId = "splendid" | "gregSullivan" | "vcsl" | "fluidR3";
 
-export type FamilyId = "pianos" | "organs" | "ensemble" | "plucked" | "synth";
+export type FamilyId = "pianos" | "organs" | "strings" | "winds" | "plucked" | "voice";
 
 /** Instrument families, in display order, for grouping the selector. */
 export const FAMILIES: readonly { id: FamilyId; nameKey: MessageKey }[] = [
   { id: "pianos", nameKey: "family.pianos" },
   { id: "organs", nameKey: "family.organs" },
-  { id: "ensemble", nameKey: "family.ensemble" },
+  { id: "strings", nameKey: "family.strings" },
+  { id: "winds", nameKey: "family.winds" },
   { id: "plucked", nameKey: "family.plucked" },
-  { id: "synth", nameKey: "family.synth" },
+  { id: "voice", nameKey: "family.voice" },
 ];
 
 export interface InstrumentDef {
@@ -128,6 +129,7 @@ function mallet(id: string, nameKey: MessageKey, name: string): InstrumentDef {
   };
 }
 
+/** Every instrument, family by family in display order (spec §12.3); `[` / `]` step through it. */
 export const INSTRUMENTS: readonly InstrumentDef[] = [
   {
     id: "grand-piano",
@@ -148,16 +150,21 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
   soundfont("drawbar-organ", "inst.drawbarOrgan", "organs", "drawbar_organ"),
   soundfont("church-organ", "inst.churchOrgan", "organs", "church_organ"),
   soundfont("harpsichord", "inst.harpsichord", "organs", "harpsichord"),
-  soundfont("strings", "inst.strings", "ensemble", "string_ensemble_1"),
-  soundfont("choir", "inst.choir", "ensemble", "choir_aahs"),
-  soundfont("flute", "inst.flute", "ensemble", "flute"),
-  soundfont("brass", "inst.brass", "ensemble", "brass_section"),
+  soundfont("violin", "inst.violin", "strings", "violin"),
+  soundfont("viola", "inst.viola", "strings", "viola"),
+  soundfont("cello", "inst.cello", "strings", "cello"),
+  soundfont("strings", "inst.strings", "strings", "string_ensemble_1"),
+  soundfont("flute", "inst.flute", "winds", "flute"),
+  soundfont("brass", "inst.brass", "winds", "brass_section"),
+  // FluidR3's harmonica covers the whole keyboard; VCSL's recorded one starts at C3 (spec §12.2).
+  soundfont("harmonica", "inst.harmonica", "winds", "harmonica"),
   soundfont("nylon-guitar", "inst.nylonGuitar", "plucked", "acoustic_guitar_nylon"),
   mallet("vibraphone", "inst.vibraphone", "Vibraphone - Soft Mallets"),
   mallet("xylophone", "inst.xylophone", "Xylophone - Medium Mallets"),
   soundfont("music-box", "inst.musicBox", "plucked", "music_box"),
-  soundfont("synth-lead", "inst.synthLead", "synth", "lead_2_sawtooth"),
-  soundfont("synth-pad", "inst.synthPad", "synth", "pad_2_warm"),
+  soundfont("choir", "inst.choir", "voice", "choir_aahs"),
+  soundfont("synth-lead", "inst.synthLead", "voice", "lead_2_sawtooth"),
+  soundfont("synth-pad", "inst.synthPad", "voice", "pad_2_warm"),
 ];
 
 export const DEFAULT_INSTRUMENT_ID = "grand-piano";
@@ -169,4 +176,17 @@ export function shortKey(def: InstrumentDef): MessageKey {
 
 export function findInstrument(id: string): InstrumentDef | undefined {
   return INSTRUMENTS.find((i) => i.id === id);
+}
+
+/** The next (1) or previous (−1) instrument in display order, wrapping at the ends. */
+export function stepInstrument(id: string, direction: 1 | -1): InstrumentDef {
+  const i = Math.max(0, INSTRUMENTS.findIndex((x) => x.id === id));
+  return INSTRUMENTS[(i + direction + INSTRUMENTS.length) % INSTRUMENTS.length];
+}
+
+/** An instrument's family and its 1-based place in it, e.g. violin → strings, 1 of 4. */
+export function familyPlace(id: string): { family: FamilyId; index: number; count: number } {
+  const family = findInstrument(id)?.family ?? INSTRUMENTS[0].family;
+  const members = INSTRUMENTS.filter((i) => i.family === family);
+  return { family, index: Math.max(0, members.findIndex((i) => i.id === id)) + 1, count: members.length };
 }
