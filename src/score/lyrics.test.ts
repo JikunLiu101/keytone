@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { alignLyrics, buildLyrics, lyricSlots, parseLyrics, type LyricItem } from "./lyrics";
+import { alignLyrics, buildLyrics, itemAt, lyricSlots, parseLyrics, type LyricItem } from "./lyrics";
 import { parseScore } from "./score";
 
 /** Items as short strings: a word's text ("+" when it continues on the next note), "-" hold, "0" skip. */
@@ -91,6 +91,24 @@ describe("buildLyrics", () => {
     expect(lyrics.itemAt({ event: 1, ext: 0 })).toMatchObject({ kind: "word", text: "二" });
     expect(lyrics.itemAt({ event: 9, ext: 0 })).toBeNull();
     expect(show(lyrics.extra)).toEqual(["三"]);
+  });
+});
+
+describe("itemAt", () => {
+  const items = parseLyrics("ab cd 乐");
+
+  it("finds the item the text cursor is in or just after", () => {
+    expect(itemAt(items, 0)).toBe(0);
+    expect(itemAt(items, 1)).toBe(0);
+    expect(itemAt(items, 2)).toBe(0);
+    expect(itemAt(items, 3)).toBe(1);
+    expect(itemAt(items, 6)).toBe(2);
+    expect(itemAt(items, 7)).toBe(2);
+  });
+
+  it("uses the first item for a cursor in leading space, and none for empty lyrics", () => {
+    expect(itemAt(parseLyrics("  ab"), 0)).toBe(0);
+    expect(itemAt([], 0)).toBe(-1);
   });
 });
 

@@ -182,7 +182,13 @@ function LyricsRow({ placed, current }: { placed: PlacedLyrics; current?: number
         <i key={`h${i}`} className="j-lyric-hold" style={{ left: h.x1, width: Math.max(0, h.x2 - h.x1) }} />
       ))}
       {placed.words.map((w, i) => (
-        <span key={i} className={lyricClass(w, current)} style={{ left: w.x, fontSize: w.scale === 1 ? undefined : `${w.scale}em` }}>
+        <span
+          key={i}
+          className={lyricClass(w, current)}
+          style={{ left: w.x, fontSize: w.scale === 1 ? undefined : `${w.scale}em` }}
+          data-lyric-event={w.slot.event}
+          data-lyric-ext={w.slot.ext}
+        >
           {w.text}
           {w.tail && <span className="j-lyric-tail">{w.tail}</span>}
         </span>

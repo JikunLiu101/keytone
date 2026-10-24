@@ -15,7 +15,7 @@ import {
   type EditorState,
 } from "../score/editor";
 import { createHistory } from "../score/history";
-import { layoutLines, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
+import { layoutLines, sameSheetBox, sheetMetrics, type SheetBox, type Slot } from "../score/jianpu-layout";
 import {
   addScore,
   duplicateScore,
@@ -25,7 +25,7 @@ import {
   untitled,
   updateScoreData,
 } from "../score/library";
-import { buildLyrics } from "../score/lyrics";
+import { buildLyrics, itemAt } from "../score/lyrics";
 import {
   KEY_NAMES,
   TEMPO_MAX,
@@ -110,6 +110,10 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const melodyRef = useRef<HTMLDivElement>(null);
+  const lyricsRef = useRef<HTMLTextAreaElement>(null);
+  const [lyricsOpen, setLyricsOpen] = useState(true);
+  /** Where the text cursor is in the lyrics box, or null when the box isn't focused. */
+  const [lyricCaret, setLyricCaret] = useState<number | null>(null);
   const [state, setStateRaw] = useState<EditorState>({ score: resolved.score, cursor: resolved.score.events.length, anchor: null });
   // Edits read the latest state from here, so fast typing and key repeat
   // never work from a copy React hasn't re-rendered yet.
@@ -212,6 +216,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       return Math.max(-MAX_OCTAVE_SHIFT, Math.min(MAX_OCTAVE_SHIFT, shift));
     };
     const onDown = (e: KeyboardEvent) => {
+      // Keys that pick a character in an input method (Esc cancels it) are the input method's.
+      if (e.isComposing) return;
       const mod = e.ctrlKey || e.metaKey;
       // Ctrl/⌘+S saves (even from a text field) instead of saving the web page.
       if (mod && e.code === "KeyS") {
@@ -220,7 +226,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         return;
       }
       // One undo history for the melody, lyrics and fields, even from a text field.
-      if (mod && !e.isComposing && (e.code === "KeyZ" || e.code === "KeyY")) {
+      if (mod && (e.code === "KeyZ" || e.code === "KeyY")) {
         e.preventDefault();
         undoRef.current(e.code === "KeyY" || e.shiftKey);
         return;
@@ -319,7 +325,28 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     };
   }, []);
   const onPanePointerDown = (e: ReactPointerEvent<HTMLElement>, focus?: HTMLElement | null) => {
-    if (readOnly || e.button !== 0) return;
+    if (e.button !== 0) return;
+    // A lyric on the sheet: select it in the lyrics box.
+    const word = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-lyric-event]") : null;
+    if (word && lyrics) {
+      const index = lyrics.slots.findIndex(
+        (slot) => slot.event === Number(word.dataset.lyricEvent) && slot.ext === Number(word.dataset.lyricExt),
+      );
+      const item = lyrics.bySlot[index];
+      if (item) {
+        e.preventDefault();
+        setLyricsOpen(true);
+        requestAnimationFrame(() => {
+          const box = lyricsRef.current;
+          if (!box) return;
+          box.focus();
+          box.setSelectionRange(item.from, item.to);
+          setLyricCaret(item.from);
+        });
+        return;
+      }
+    }
+    if (readOnly) return;
     const at = pickCursor(e.target, e.clientX) ?? (e.target === e.currentTarget ? stateRef.current.score.events.length : null);
     if (at === null) return;
     e.preventDefault();
@@ -344,6 +371,18 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font, !!lyrics]);
   const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [state.score, beatsPerLine]);
   const selection = selectionRange(state);
+  // The note the lyric under the text cursor falls on (spec §11.4).
+  const highlight: Slot | null = useMemo(() => {
+    if (lyricCaret === null || !lyrics) return null;
+    const index = itemAt(lyrics.items, lyricCaret);
+    return lyrics.slots[index] ?? null;
+  }, [lyricCaret, lyrics]);
+  const onLyrics = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const current = stateRef.current;
+    commit({ ...current, score: { ...current.score, lyrics: e.target.value } }, "lyrics");
+    setLyricCaret(e.target.selectionStart);
+  };
+  const trackCaret = (e: { currentTarget: HTMLTextAreaElement }) => setLyricCaret(e.currentTarget.selectionStart);
 
   // Keep the cursor in view on both sides.
   useEffect(() => {
@@ -541,6 +580,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
             cursor={readOnly ? undefined : state.cursor}
             eventCount={state.score.events.length}
             selection={selection}
+            highlight={highlight}
             lyrics={lyrics}
           />
           {state.score.events.length === 0 && !readOnly && (
@@ -565,10 +605,40 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
                 lines={lines}
                 cursor={state.cursor}
                 selection={selection}
+                highlight={highlight}
                 label={t("editor.melody")}
                 readOnly={readOnly}
               />
             </div>
+          </section>
+          <section className={`editor-pane editor-pane--lyrics${lyricsOpen ? "" : " editor-pane--closed"}`}>
+            <div className="editor-pane-head">
+              <h3 className="control-label">{t("editor.lyrics")}</h3>
+              {!!lyrics?.extra.length && (
+                <span className="editor-lyrics-extra" role="status">
+                  {t("editor.lyricsExtra").replace("{n}", String(lyrics.extra.length))}
+                </span>
+              )}
+              <button className="button button--ghost editor-pane-toggle" onClick={() => setLyricsOpen(!lyricsOpen)} aria-expanded={lyricsOpen}>
+                {lyricsOpen ? t("editor.lyricsHide") : t("editor.lyricsShow")}
+              </button>
+            </div>
+            {lyricsOpen && (
+              <div className="editor-text-box">
+                <textarea
+                  ref={lyricsRef}
+                  value={state.score.lyrics}
+                  readOnly={readOnly}
+                  spellCheck={false}
+                  aria-label={t("editor.lyrics")}
+                  placeholder={readOnly ? undefined : t("editor.lyricsPlaceholder")}
+                  onChange={onLyrics}
+                  onSelect={trackCaret}
+                  onFocus={trackCaret}
+                  onBlur={() => setLyricCaret(null)}
+                />
+              </div>
+            )}
           </section>
         </div>
       </div>
