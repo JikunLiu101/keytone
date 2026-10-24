@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Version 4 (score layout, lyrics and editor, §11) is implemented, not yet deployed. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Version 4 (score layout, lyrics and editor, §11) is implemented, not yet deployed. Version 5 (more instruments and a compact instrument picker, §12) is agreed and being built. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
@@ -42,6 +42,11 @@ Keytone is a browser-only app that turns your computer keyboard into an electron
 - Lyrics
 - Two-column score editor with selection, copy and paste, and undo
 - Toasts at the top of the screen
+
+### Version 5
+- Violin, viola, cello and harmonica (21 instruments)
+- A compact instrument picker styled like the keyboard's LCD, opening a list by family
+- A control panel that keeps still when the language changes
 
 ### Later
 - Self-hosted samples
@@ -128,7 +133,7 @@ All instruments come from [smplr](https://github.com/danigb/smplr).
 | 16 | Synth Lead | `Soundfont` FluidR3_GM | CC BY 3.0 |
 | 17 | Synth Pad | `Soundfont` FluidR3_GM | CC BY 3.0 |
 
-- Instruments are switched by clicking the instrument list, or with `[` / `]` for the previous / next one.
+- Instruments are switched by clicking the instrument list, or with `[` / `]` for the previous / next one. (Version 5 adds four instruments, regroups them and replaces the list with a picker: §12.)
 - Samples load on demand when an instrument is first selected. While they load, a loading state is shown and the previous instrument stays playable. Playing switches to the new instrument once it is ready.
 - Version 1 loads samples from smplr's default hosts, so it needs a network connection. The sample base URL must be configurable so it can move to self-hosted files later.
 - A credits panel lists every sample source and its license. CC BY requires attribution.
@@ -142,7 +147,7 @@ All instruments come from [smplr](https://github.com/danigb/smplr).
 
 ### Layout
 - The controls sit at the top of the page, and the panel can collapse:
-  - instrument list
+  - instrument list (an LCD-style picker from version 5: §12.4)
   - volume
   - velocity
   - reverb
@@ -538,3 +543,76 @@ Each step is shown, then committed after approval.
 4. Editor: two columns, melody text with one shared cursor, selection, copy and paste, undo
 5. Editor: lyrics text, cursor link, warnings
 6. Docs (READMEs) and deploy
+
+## 12. Version 5 Spec: More instruments and a compact instrument picker
+
+Agreed 2026-10-25.
+
+### 12.1 Why
+- The instrument pads fill a whole row of the control panel, and every new instrument makes them take more room.
+- The player picks an instrument by family first, then the instrument in it.
+- Switching between English and Chinese visibly moves and resizes the panel's controls: Chinese falls back to a system font whose line boxes are taller (each row about 2 px taller, the whole panel 11 px), and every button is as wide as its label.
+- Wanted: violin, viola and cello, and a melodica. No sample source the app uses has a melodica, so a harmonica takes its place.
+
+### 12.2 New instruments
+Four instruments are added, 21 in total. All come from smplr's `Soundfont` FluidR3_GM (CC BY 3.0), already in the credits:
+
+| Instrument | GM name |
+|---|---|
+| Violin | `violin` |
+| Viola | `viola` |
+| Cello | `cello` |
+| Harmonica | `harmonica` |
+
+- Why not the recorded Hohner Super 64 harmonica from VCSL (CC0): its samples only cover C3 and up, so the two lowest octaves of Keytone's range (from C1, §3) would be silent. FluidR3's harmonica covers the whole range. If the player prefers the recorded one after listening, the source can change; how to handle its low notes would then need a decision.
+- Instrument ids of existing instruments don't change, so a saved choice still loads.
+
+### 12.3 Families
+The instruments are regrouped. Display order:
+
+| Family | Instruments |
+|---|---|
+| Pianos | Grand Piano, Wurlitzer E-Piano, CP80 E-Piano, FM E-Piano |
+| Organs | Drawbar Organ, Church Organ, Harpsichord |
+| Strings | Violin, Viola, Cello, String Ensemble |
+| Winds | Flute, Brass, Harmonica |
+| Plucked & mallets | Nylon Guitar, Vibraphone, Xylophone, Music Box |
+| Voice & synth | Choir, Synth Lead, Synth Pad |
+
+`[` / `]` and the picker's ▲ / ▼ step through this order and wrap around at the ends.
+
+- The screen and the list show each instrument's full name. "Strings" is renamed "String Ensemble", so the Strings family doesn't hold an item called Strings. The short names used on the old pads go away.
+
+### 12.4 The instrument picker: a small LCD
+Replaces the instrument pads in the control panel.
+- **Closed**: one control about the size of a large button, styled like the LCD on the keyboard (§5): a dark teal screen with glowing cyan type.
+  - A small line shows the family and the instrument's place in it, for example `STRINGS · 1/4` (Chinese: `弦乐 · 1/4`).
+  - The instrument's name is in large type below it.
+  - Two small keys at its right, ▲ and ▼, step to the previous / next instrument.
+- It shares one row with volume and velocity.
+- **Open**: clicking the screen opens a list below it, styled the same way.
+  - One column per family: the family name on top, its instruments below. The current instrument has a lit LED.
+  - Clicking an instrument selects it and closes the list. Esc, a click outside or another click on the screen closes it too.
+  - Keyboard: ↑ / ↓ move within a family's column, ← / → move between columns, Enter picks, Esc closes.
+  - The list fits in the window. On narrow screens (phones) the columns wrap; the builder decides how.
+- **Loading and errors** show as they do now: the instrument being loaded blinks, in the screen and in the list, and a failed one is marked in the list.
+- While the list is open, the computer keyboard neither plays notes nor triggers single-key shortcuts, as in other dialogs; notes held when it opens are released. Closing it gives the keys back.
+- The screen has one fixed width that fits the longest of the 21 names in either language.
+
+### 12.5 The control panel keeps still when the language changes
+- Every control in the panel (buttons, labels, selects, sliders, value readouts) has a fixed width that fits its longer label, English or Chinese. Both labels are laid out in the same box and only the current one is shown, so the width follows whichever is wider on that system's fonts.
+- The score menu holds song titles of any length: it gets a fixed width, and long titles end in "…".
+- Rows have a fixed line height, so Chinese text doesn't make them taller. The panel is the same height in both languages.
+- Check: switching the language moves or resizes no control in the panel by more than 1 px.
+- With the pads gone, the panel gets shorter and its rows are rearranged. The builder proposes the rows and shows them before they are committed.
+- Phones (compact layout) follow the same rules. The collapsed panel bar keeps its look (no picker) but gets the same fixed line height.
+
+### 12.6 Not in this version
+Self-hosted samples, a real melodica, icons per instrument, saving the list's scroll position.
+
+### 12.7 Order
+Each step is shown, then committed after approval.
+1. Instruments and families: the four new instruments, the regrouping, `[` / `]` order
+2. The LCD picker and its list
+3. The fixed-width panel: rows rearranged; language switch keeps everything still
+4. Docs (READMEs, spec status)
