@@ -7,6 +7,8 @@ import { BEATS_PER_LINE, SCORE_VIEWS } from "../app/settings";
 import { listScores, userScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
+import { MESSAGES } from "../i18n/strings";
+import { Both } from "./Both";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 import { InstrumentPicker } from "./InstrumentPicker";
 import { Select } from "./Select";
@@ -32,11 +34,16 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
   const indicators = (
     <div className="indicators" aria-live="polite">
       <span className={`indicator ${shift !== 0 ? "indicator--on" : ""}`}>
-        {t("panel.octave")} {shift > 0 ? `+${shift}` : shift}
+        <Both
+          en={`${MESSAGES.en["panel.octave"]} ${shift > 0 ? `+${shift}` : shift}`}
+          zh={`${MESSAGES.zh["panel.octave"]} ${shift > 0 ? `+${shift}` : shift}`}
+        />
       </span>
       <span className={`indicator ${sustain ? "indicator--on" : ""}`}>
-        {t("panel.sustain")}
-        {s.bindings.sustain ? ` · ${codeLabel(s.bindings.sustain)}` : ""}
+        <Both
+          en={MESSAGES.en["panel.sustain"] + (s.bindings.sustain ? ` · ${codeLabel(s.bindings.sustain)}` : "")}
+          zh={MESSAGES.zh["panel.sustain"] + (s.bindings.sustain ? ` · ${codeLabel(s.bindings.sustain)}` : "")}
+        />
       </span>
     </div>
   );
@@ -47,7 +54,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       onClick={() => settings.set({ language: s.language === "en" ? "zh" : "en" })}
       aria-label="Language / 语言"
     >
-      {s.language === "en" ? "中文" : "EN"}
+      <Both en="中文" zh="EN" />
     </button>
   );
 
@@ -61,7 +68,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
         </span>
         {indicators}
         <button className="button button--ghost" onClick={() => settings.set({ panelCollapsed: false })}>
-          {t("panel.expand")}
+          <Both k="panel.expand" />
           <ChevronDownIcon />
         </button>
       </header>
@@ -73,18 +80,21 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       <div className="panel-row">
         <div className="brand-block">
           <span className="brand">Keytone</span>
-          <span className="tagline">{t("app.tagline")}</span>
+          <span className="tagline">
+            <Both k="app.tagline" />
+          </span>
         </div>
+        {indicators}
         <div className="panel-actions">
           <button className="button button--ghost" onClick={onOpenBindings} title={`${t("panel.keys")} (F1)`}>
-            {t("panel.keys")}
+            <Both k="panel.keys" />
           </button>
           <button className="button button--ghost" onClick={onOpenCredits}>
-            {t("panel.credits")}
+            <Both k="panel.credits" />
           </button>
           {languageToggle}
           <button className="button button--ghost" onClick={() => settings.set({ panelCollapsed: true })}>
-            {t("panel.collapse")}
+            <Both k="panel.collapse" />
             <ChevronUpIcon />
           </button>
         </div>
@@ -102,7 +112,9 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       <div className="panel-row panel-row--controls">
         <InstrumentPicker />
         <label className="fader" title={`${t("panel.volume")} (- / =)`}>
-          <span className="control-label">{t("panel.volume")}</span>
+          <span className="control-label">
+            <Both k="panel.volume" />
+          </span>
           <input
             type="range"
             min={0}
@@ -114,7 +126,9 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           <span className="control-value">{Math.round(s.volume * 100)}%</span>
         </label>
         <label className="fader" title={t("velocity.help")}>
-          <span className="control-label">{t("panel.velocity")}</span>
+          <span className="control-label">
+            <Both k="panel.velocity" />
+          </span>
           <input
             type="range"
             min={1}
@@ -137,7 +151,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
             onClick={() => settings.set({ reverb: !s.reverb })}
           >
             <span className="led" aria-hidden="true" />
-            {t("panel.reverb")}
+            <Both k="panel.reverb" />
           </button>
           <button
             className={`latch ${s.effects ? "latch--on" : ""}`}
@@ -146,7 +160,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
             onClick={() => settings.set({ effects: !s.effects })}
           >
             <span className="led" aria-hidden="true" />
-            {t("panel.effects")}
+            <Both k="panel.effects" />
           </button>
           <div className="segmented" role="radiogroup" aria-label={t("panel.palette")}>
             {PALETTE_IDS.map((id) => (
@@ -158,16 +172,17 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
                 onClick={() => settings.set({ lightPalette: id })}
               >
                 <span className="swatch" aria-hidden="true" />
-                {t(`palette.${id}`)}
+                <Both k={`palette.${id}`} />
               </button>
             ))}
           </div>
         </div>
-        {indicators}
       </div>
 
       <div className="panel-row panel-row--score">
-        <span className="control-label">{t("panel.score")}</span>
+        <span className="control-label">
+          <Both k="panel.score" />
+        </span>
         <div className="segmented segmented--plain" role="radiogroup" aria-label={t("panel.score")}>
           {SCORE_VIEWS.map((view) => (
             <button
@@ -178,7 +193,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
               title={`${t(`score.view.${view}`)} (\`)`}
               onClick={() => settings.set({ scoreView: view })}
             >
-              {t(`score.view.${view}`)}
+              <Both k={`score.view.${view}`} />
             </button>
           ))}
         </div>
@@ -203,6 +218,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           disabled={s.scoreView !== "jianpu"}
           onChange={(beatsPerLine: number) => settings.set({ beatsPerLine })}
           options={BEATS_PER_LINE.map((n) => ({ value: n, label: t("score.beatsN").replace("{n}", String(n)) }))}
+          sizeTo={BEATS_PER_LINE.flatMap((n) => [MESSAGES.en["score.beatsN"], MESSAGES.zh["score.beatsN"]].map((x) => x.replace("{n}", String(n))))}
         />
         <button
           className={`latch latch--key-hints ${s.scoreKeyHints ? "latch--on" : ""}`}
@@ -212,7 +228,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           onClick={() => settings.set({ scoreKeyHints: !s.scoreKeyHints })}
         >
           <span className="led" aria-hidden="true" />
-          {t("score.keyHints")}
+          <Both k="score.keyHints" />
         </button>
         <button
           className={`latch ${s.scoreLyrics ? "latch--on" : ""}`}
@@ -222,7 +238,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           onClick={() => settings.set({ scoreLyrics: !s.scoreLyrics })}
         >
           <span className="led" aria-hidden="true" />
-          {t("score.lyrics")}
+          <Both k="score.lyrics" />
         </button>
         <button
           className={`latch ${s.practice ? "latch--on" : ""}`}
@@ -233,10 +249,10 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           onClick={() => settings.set({ practice: !s.practice })}
         >
           <span className="led" aria-hidden="true" />
-          {t("score.practice")}
+          <Both k="score.practice" />
         </button>
         <button className="button button--ghost score-edit-btn" onClick={onOpenEditor} title={`${t("score.edit")} (E)`}>
-          {t("score.edit")}
+          <Both k="score.edit" />
         </button>
       </div>
     </header>

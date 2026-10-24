@@ -20,6 +20,11 @@ interface SelectProps<T> {
   /** Shortcut shown in the tooltip, e.g. "Tab / Shift+Tab". */
   hint?: string;
   /**
+   * Texts the button reserves room for (laid out unseen under the value), so
+   * its width doesn't change with the value or the language.
+   */
+  sizeTo?: string[];
+  /**
    * Play a slow "open, slide to this option, choose it, close" animation
    * (for keyboard shortcuts). A new token starts a new run.
    */
@@ -59,6 +64,7 @@ export function Select<T extends string | number>({
   className,
   hint,
   glide,
+  sizeTo,
 }: SelectProps<T>) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -236,7 +242,18 @@ export function Select<T extends string | number>({
         onClick={() => (open ? close() : openList())}
         onKeyDown={onTriggerKey}
       >
-        <span className="select-value">{current?.label ?? ""}</span>
+        {sizeTo ? (
+          <span className="select-value both">
+            {sizeTo.map((text, i) => (
+              <span key={i} className="both-off" aria-hidden="true">
+                {text}
+              </span>
+            ))}
+            <span>{current?.label ?? ""}</span>
+          </span>
+        ) : (
+          <span className="select-value">{current?.label ?? ""}</span>
+        )}
         <ChevronDownIcon />
       </button>
       {open &&
