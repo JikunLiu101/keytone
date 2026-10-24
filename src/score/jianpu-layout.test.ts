@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { keyHint, layoutBars, layoutLines, layoutPages, pageOfEvent, placeLine, sameSheetBox, sheetMetrics } from "./jianpu-layout";
+import { keyHint, layoutBars, layoutLines, layoutPages, pageOfEvent, placeLine, placeLyrics, sameSheetBox, sheetMetrics } from "./jianpu-layout";
+import { alignLyrics, lyricSlots, parseLyrics, slotKey } from "./lyrics";
 import { parseScore } from "./score";
 
 const body = (notes: string, header = "") => parseScore(`${header}---\n${notes}`).score;
@@ -140,6 +141,67 @@ describe("placeLine", () => {
   it("draws the last bar of a score at its full length", () => {
     const [line] = layoutLines(body("1 2", "time: 4/4\n"), 16);
     expect(placeLine(line, { beat: 50, gap: 20, font: 18 }).bars[0].width).toBe(200);
+  });
+});
+
+describe("placeLyrics", () => {
+  const m = { beat: 50, gap: 20, font: 18 };
+  /** Place the first line of `notes` with `lyrics`, lyrics font 12 px. */
+  const place = (notes: string, lyrics: string) => {
+    const score = body(notes, "time: 4/4\n");
+    const { bySlot } = alignLyrics(lyricSlots(score), parseLyrics(lyrics));
+    const items = new Map(lyricSlots(score).map((slot, i) => [slotKey(slot), bySlot[i]]));
+    return placeLyrics(placeLine(layoutLines(score, 16)[0], m), (slot) => items.get(slotKey(slot)) ?? null, 12);
+  };
+
+  it("centres each word under its note", () => {
+    const placed = place("1 2 0 3", "一 二 三");
+    expect(placed.words.map((w) => [w.text, w.x])).toEqual([
+      ["一", 25],
+      ["二", 75],
+      ["三", 175],
+    ]);
+    expect(placed.words.every((w) => w.scale === 1)).toBe(true);
+  });
+
+  it("draws nothing for a note that is not sung", () => {
+    expect(place("1 2", "0 二").words.map((w) => w.text)).toEqual(["二"]);
+  });
+
+  it("shrinks a word that is wider than the room between its neighbours", () => {
+    const placed = place("1// 2// 3// 4// 5", "wonderfully a b c d");
+    expect(placed.words[0].scale).toBeLessThan(1);
+    expect(placed.words[0].scale).toBeGreaterThanOrEqual(0.6);
+    expect(placed.words[4].scale).toBe(1);
+  });
+
+  it("ties the parts of a split word with one bracket", () => {
+    const placed = place("1 2 3", "hap-py day");
+    expect(placed.brackets).toHaveLength(1);
+    const [bracket] = placed.brackets;
+    expect(bracket.x1).toBeLessThan(25);
+    expect(bracket.x2).toBeGreaterThan(75);
+    expect(bracket.x2).toBeLessThan(125);
+  });
+
+  it("runs a hold line from the end of the word to the end of the last held beat", () => {
+    const placed = place("1 - - 2", "乐-- 二");
+    expect(placed.holds).toHaveLength(1);
+    expect(placed.holds[0].x1).toBeGreaterThan(25 + 6);
+    expect(placed.holds[0].x1).toBeLessThan(40);
+    expect(placed.holds[0].x2).toBeGreaterThan(140);
+    expect(placed.holds[0].x2).toBeLessThanOrEqual(150);
+  });
+
+  it("centres a word without its punctuation, which hangs after it", () => {
+    const placed = place("1 - 2", "乐，- 二");
+    expect(placed.words[0]).toMatchObject({ text: "乐", tail: "，", x: 25 });
+    // The hold line starts after the comma: 25 + half of 乐 (6) + the comma (12).
+    expect(placed.holds[0].x1).toBeGreaterThan(25 + 6 + 12);
+  });
+
+  it("marks a word that falls on a dash", () => {
+    expect(place("1 - 2", "一 二 三").words.map((w) => w.misplaced)).toEqual([false, true, false]);
   });
 });
 

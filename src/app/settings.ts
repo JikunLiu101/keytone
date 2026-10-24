@@ -32,6 +32,8 @@ export interface Settings {
   scoreKeyHints: boolean;
   /** Beats on one jianpu line; every beat has the same width. */
   beatsPerLine: number;
+  /** Show the score's lyrics under the jianpu. */
+  scoreLyrics: boolean;
   /** Practice mode: the score waits for the right note. */
   practice: boolean;
   language: Language;
@@ -58,6 +60,7 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     scoreId: DEFAULT_SCORE_ID,
     scoreKeyHints: true,
     beatsPerLine: 16,
+    scoreLyrics: true,
     practice: false,
     language,
     bindings: { ...DEFAULT_BINDINGS },
@@ -137,6 +140,7 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     beatsPerLine: (BEATS_PER_LINE as readonly unknown[]).includes(r.beatsPerLine)
       ? (r.beatsPerLine as number)
       : defaults.beatsPerLine,
+    scoreLyrics: typeof r.scoreLyrics === "boolean" ? r.scoreLyrics : defaults.scoreLyrics,
     practice: typeof r.practice === "boolean" ? r.practice : defaults.practice,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,

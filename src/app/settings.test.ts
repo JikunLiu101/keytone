@@ -102,6 +102,12 @@ describe("sanitize", () => {
     expect(sanitize({}, defaults).beatsPerLine).toBe(16);
   });
 
+  it("shows lyrics by default and remembers turning them off", () => {
+    expect(defaults.scoreLyrics).toBe(true);
+    expect(sanitize({ scoreLyrics: false }, defaults).scoreLyrics).toBe(false);
+    expect(sanitize({ scoreLyrics: "no" }, defaults).scoreLyrics).toBe(true);
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

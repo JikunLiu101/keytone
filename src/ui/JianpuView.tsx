@@ -3,7 +3,8 @@
  * editor, which adds a cursor and click-to-place.
  */
 import { codeLabel } from "../core/keymap";
-import { keyHint, type Glyph, type Line, type SheetMetrics } from "../score/jianpu-layout";
+import { keyHint, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics } from "../score/jianpu-layout";
+import type { ScoreLyrics } from "../score/lyrics";
 import type { KeyName, Pitch, Score } from "../score/score";
 
 /** "Db" → "♭D", "F#" → "♯F": jianpu writes the accidental first (1=♭E). */
@@ -159,18 +160,54 @@ interface LinesProps {
   cursor?: number;
   eventCount?: number;
   onPick?: (cursor: number) => void;
+  /** Lyrics drawn under the notes (spec §11.3); omit to draw none. */
+  lyrics?: ScoreLyrics | null;
+}
+
+/** Lyrics font, as a share of the digit size. */
+export const LYRIC_EM = 0.75;
+
+function lyricClass(word: PlacedLyrics["words"][number], current: number | undefined): string {
+  let c = "j-lyric";
+  if (word.misplaced) c += " j-lyric--misplaced";
+  if (current === undefined) return c;
+  if (current < 0 || word.slot.event < current) return `${c} j-lyric--played`;
+  if (word.slot.event === current && word.slot.ext === 0) return `${c} j-lyric--current`;
+  return c;
+}
+
+/** The lyrics row of one line, drawn over the room kept free under its notes. */
+function LyricsRow({ placed, current }: { placed: PlacedLyrics; current?: number }) {
+  return (
+    <div className="j-lyrics" aria-hidden="true">
+      {placed.brackets.map((b, i) => (
+        <i key={`b${i}`} className="j-lyric-bracket" style={{ left: b.x1, width: Math.max(0, b.x2 - b.x1) }} />
+      ))}
+      {placed.holds.map((h, i) => (
+        <i key={`h${i}`} className="j-lyric-hold" style={{ left: h.x1, width: Math.max(0, h.x2 - h.x1) }} />
+      ))}
+      {placed.words.map((w, i) => (
+        <span key={i} className={lyricClass(w, current)} style={{ left: w.x, fontSize: w.scale === 1 ? undefined : `${w.scale}em` }}>
+          {w.text}
+          {w.tail && <span className="j-lyric-tail">{w.tail}</span>}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 /** Below this many px a gap before a group is rounding noise, not a rest in time. */
 const MIN_LEAD = 0.5;
 
-export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, onPick }: LinesProps) {
+export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, onPick, lyrics }: LinesProps) {
+  const extra = endsScore && lyrics ? lyrics.extra.flatMap((item) => (item.kind === "word" ? [item.text] : [])) : [];
   return (
     <>
       {lines.map((line, li) => {
         const isLast = li === lines.length - 1;
+        const lyricsRow = lyrics ? placeLyrics(placeLine(line, metrics), lyrics.itemAt, metrics.font * LYRIC_EM) : null;
         return (
-          <div key={li} className="j-line">
+          <div key={li} className={`j-line${lyrics ? " j-line--lyrics" : ""}`}>
             {line.bars.map((bar, bi) => {
               // Bars are a fixed number of beats wide, whatever is in them. The
               // bar line sits in the middle of the gap after the bar.
@@ -218,9 +255,12 @@ export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, 
                 </div>
               );
             })}
+            {lyricsRow && <LyricsRow placed={lyricsRow} current={current} />}
           </div>
         );
       })}
+      {/* Lyrics with no note left to sit on wait here, dimmed. */}
+      {extra.length > 0 && <p className="j-lyrics-extra">{extra.join(" ")}</p>}
     </>
   );
 }

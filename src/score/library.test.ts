@@ -41,6 +41,14 @@ describe("library", () => {
     expect(userScores.get().list).toEqual([]);
   });
 
+  it("gives built-ins lyrics in the UI language, and a copy keeps them", () => {
+    expect(resolveScore("builtin:birthday", "zh").score.lyrics.startsWith("祝你生日快乐")).toBe(true);
+    expect(resolveScore("builtin:birthday", "en").score.lyrics.startsWith("Hap-py")).toBe(true);
+    const id = duplicateScore("builtin:birthday", "en");
+    expect(resolveScore(id, "zh").score.lyrics.startsWith("Hap-py")).toBe(true);
+    removeScore(id);
+  });
+
   it("drops malformed stored entries", () => {
     expect(sanitizeLibrary([{ id: "user:a", text: "1" }, { id: "builtin:x", text: "1" }, { id: "user:b" }, null])).toEqual([
       { id: "user:a", text: "1" },

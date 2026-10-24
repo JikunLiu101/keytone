@@ -250,6 +250,16 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           {t("score.keyHints")}
         </button>
         <button
+          className={`latch ${s.scoreLyrics ? "latch--on" : ""}`}
+          role="switch"
+          aria-checked={s.scoreLyrics}
+          disabled={s.scoreView !== "jianpu"}
+          onClick={() => settings.set({ scoreLyrics: !s.scoreLyrics })}
+        >
+          <span className="led" aria-hidden="true" />
+          {t("score.lyrics")}
+        </button>
+        <button
           className={`latch ${s.practice ? "latch--on" : ""}`}
           role="switch"
           aria-checked={s.practice}

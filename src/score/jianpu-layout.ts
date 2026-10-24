@@ -6,6 +6,7 @@
  */
 import { BASE_MIDI } from "../core/notes";
 import { NOTE_KEYS } from "../core/keymap";
+import type { LyricItem } from "./lyrics";
 import { barBeats, pitchMidi, type Pitch, type Score } from "./score";
 
 /** A lyric slot: a note (ext 0) or the ext-th dash that holds it (spec §11.3). */
@@ -222,6 +223,98 @@ export function placeLine(line: Line, m: SheetMetrics): PlacedLine {
     x += width + m.gap;
   }
   return { glyphs, bars, width: x };
+}
+
+export interface PlacedLyrics {
+  /**
+   * Words centred at `x` (px from the line start), drawn at `scale` of the
+   * lyrics font; punctuation after a word (`tail`) hangs to its right.
+   */
+  words: { x: number; text: string; tail: string; scale: number; slot: Slot; misplaced: boolean }[];
+  /** Brackets tying the parts of a split word into one word. */
+  brackets: { x1: number; x2: number }[];
+  /** Lines showing a word is held over the following beats. */
+  holds: { x1: number; x2: number }[];
+}
+
+/** Rough width of `text` in em: wide CJK characters, narrower Latin letters, thin punctuation. */
+export function textWidthEm(text: string): number {
+  let em = 0;
+  for (const ch of text) {
+    if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\u3000-\u303f\uff00-\uffef]/u.test(ch)) em += 1;
+    else if (/[A-Z]/.test(ch)) em += 0.62;
+    else if (/[\p{L}\p{N}]/u.test(ch)) em += 0.52;
+    else em += 0.3;
+  }
+  return em;
+}
+
+/** Smallest a word is drawn before it is allowed to overlap its neighbours. */
+const MIN_LYRIC_SCALE = 0.6;
+
+/**
+ * Lyrics of one placed line (spec §11.3): each word under its note, shrunk
+ * when wider than the room between its neighbours; a bracket under the parts
+ * of a split word; a hold line from a word to the end of its last held beat.
+ * `font` is the lyrics font size in px.
+ */
+export function placeLyrics(line: PlacedLine, itemAt: (slot: Slot) => LyricItem | null, font: number): PlacedLyrics {
+  const pad = 0.15 * font;
+  const entries = line.glyphs.flatMap((g) => {
+    const slot = g.glyph.slot;
+    const item = slot ? itemAt(slot) : null;
+    return slot && item ? [{ slot, item, left: g.x, x: g.x + g.width / 2, right: g.x + g.width }] : [];
+  });
+
+  const words: PlacedLyrics["words"] = [];
+  // Entry index → how far the drawn word reaches left and right of its centre.
+  const reach = new Map<number, { left: number; right: number }>();
+  const wordEntries = entries.flatMap((e, i) => (e.item.kind === "word" ? [i] : []));
+  wordEntries.forEach((i, k) => {
+    const e = entries[i];
+    if (e.item.kind !== "word") return;
+    const left = k > 0 ? e.x - entries[wordEntries[k - 1]].x : Infinity;
+    const right = k < wordEntries.length - 1 ? entries[wordEntries[k + 1]].x - e.x : Infinity;
+    const room = 2 * Math.min(left, right) - pad;
+    const [, text, tail] = /^(.*?)([^\p{L}\p{N}'’]*)$/su.exec(e.item.text)!;
+    const core = textWidthEm(text) * font;
+    const width = core + textWidthEm(tail) * font;
+    const scale = width > room ? Math.max(MIN_LYRIC_SCALE, room / width) : 1;
+    reach.set(i, { left: (core / 2) * scale, right: (width - core / 2) * scale });
+    words.push({ x: e.x, text, tail, scale, slot: e.slot, misplaced: e.slot.ext > 0 });
+  });
+
+  const brackets: PlacedLyrics["brackets"] = [];
+  const holds: PlacedLyrics["holds"] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const item = entries[i].item;
+    if (item.kind === "word" && (item.joinNext || item.joinPrev)) {
+      // A split word: its parts are consecutive items; a part continued from the
+      // line before starts the bracket at the line's start.
+      let j = i;
+      while (j + 1 < entries.length) {
+        const cur = entries[j].item;
+        const nxt = entries[j + 1].item;
+        if (cur.kind !== "word" || !cur.joinNext || nxt.kind !== "word" || !nxt.joinPrev) break;
+        j++;
+      }
+      const last = entries[j].item;
+      const x1 = item.joinPrev ? 0 : entries[i].x - (reach.get(i)?.left ?? 0);
+      const open = last.kind === "word" && last.joinNext;
+      const x2 = entries[j].x + (reach.get(j)?.right ?? 0) + (open ? 2 * pad : 0);
+      if (j > i || item.joinPrev || open) brackets.push({ x1, x2 });
+      i = j;
+    } else if (item.kind === "hold") {
+      let j = i;
+      while (j + 1 < entries.length && entries[j + 1].item.kind === "hold") j++;
+      const before = i > 0 ? entries[i - 1] : null;
+      // From the end of the held word, or from the first held beat when the word is on the line before.
+      const x1 = before && before.item.kind === "word" ? before.x + (reach.get(i - 1)?.right ?? 0) + pad : entries[i].left;
+      holds.push({ x1, x2: entries[j].right - pad });
+      i = j;
+    }
+  }
+  return { words, brackets, holds };
 }
 
 export interface KeyHint {
