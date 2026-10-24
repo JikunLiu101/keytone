@@ -181,8 +181,8 @@ button {
   margin-left: auto;
 }
 
-/* The octave / sustain readouts sit on the top row, just before the buttons. */
-.indicators + .panel-actions {
+/* The octave / sustain readouts sit on the top row, just before the buttons (phones hide them). */
+.app:not([data-compact]) .indicators + .panel-actions {
   margin-left: 0;
 }
 
@@ -213,16 +213,21 @@ button {
   min-width: 48px;
 }
 
+/*
+ * The collapsed bar: the instrument name takes the free space (its length
+ * changes with the language), so the readouts and the button stay put; a
+ * fixed line height keeps Chinese from making it taller (spec §12.5).
+ */
 .current-instrument {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-}
-
-.panel--collapsed .indicators {
-  margin-left: auto;
+  line-height: 20px;
+  white-space: nowrap;
 }
 
 /* Panel button: raised cap with an indicator LED. */
@@ -392,7 +397,10 @@ button {
   transform: translateY(1px);
 }
 
-/* The open list: columns of a fixed width, wrapping when the window is narrow. */
+/*
+ * The open list: a larger screen in the LCD's own look (dark teal, glowing
+ * cyan type), columns of a fixed width wrapping when the window is narrow.
+ */
 .picker-list {
   position: fixed;
   z-index: 100;
@@ -402,13 +410,15 @@ button {
   gap: 4px 8px;
   padding: 10px;
   overflow-y: auto;
-  border: 1px solid rgba(0, 0, 0, 0.6);
+  border: 3px solid #23252b;
   border-radius: 10px;
-  background: linear-gradient(180deg, #2b2e36 0%, #22242a 100%);
+  background: linear-gradient(180deg, #16303a, #1d3d48);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 2px 8px rgba(0, 0, 0, 0.7),
     0 16px 40px rgba(0, 0, 0, 0.55);
-  color: var(--text);
+  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  color: var(--lcd-glow);
+  text-shadow: 0 0 6px rgba(108, 196, 255, 0.5);
   outline: none;
 }
 
@@ -421,12 +431,11 @@ button {
 
 .picker-column-name {
   margin: 2px 0 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--text-dim);
+  opacity: 0.65;
 }
 
 .picker-option {
@@ -435,19 +444,21 @@ button {
   gap: 8px;
   height: 28px;
   padding: 0 8px;
-  border-radius: 5px;
-  color: #d5d8de;
-  font-size: 13.5px;
+  border-radius: 4px;
+  font-size: 13px;
   white-space: nowrap;
+  opacity: 0.85;
   cursor: pointer;
 }
 
 .picker-option--active {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(143, 227, 255, 0.12);
+  opacity: 1;
 }
 
 .picker-option--on {
-  color: #fff;
+  color: #e6fbff;
+  opacity: 1;
 }
 
 .picker-option--error {
