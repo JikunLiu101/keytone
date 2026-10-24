@@ -11,8 +11,10 @@ Play an electronic keyboard with your computer keyboard, right in the browser. N
 - 17 curated sounds in 5 families: pianos, organs and harpsichord, ensemble and winds, plucked and mallets, and synths
 - A 3D keyboard with an upright frosted-glass panel where soft light bars rise as you play, in a cool (Aurora) or warm (Amber) palette
 - Scores on the glass: read along in jianpu (numbered notation), or play along with falling notes that drop onto their keys
+- Jianpu laid out with every beat the same width and whole bars on each line (choose 8–32 beats a line)
+- Lyrics under the notes, in Chinese or English, lit up with the note in practice mode
 - Practice mode: the score waits for the right note. Without it, falling notes keep time and count perfect / missing
-- A score editor: type notes with the digit keys, keep your scores in the browser, import and export them as text
+- A score editor with the sheet on the left and the melody and lyrics as text on the right: type notes with the digit keys, select, copy and paste notes, undo, keep your scores in the browser, import and export them as text
 - Play with the computer keyboard, click and drag on the on-screen keys, or use touch (multi-finger)
 - Hold-to-shift octave keys and a sustain pedal, all rebindable
 - Volume, velocity (shown as dynamics, pp to fff), reverb and light-bar controls
@@ -59,8 +61,15 @@ Open **Score** in the control panel and pick **Jianpu** or **Falling**. Two song
 | `↑` / `↓` | Sharp / flat |
 | Hold an octave key + digit | Low / high octave |
 | `←` `→`, `Backspace` | Move, delete |
+| `Shift` + `←` `→`, drag | Select notes (on the sheet or in the melody text) |
+| `Ctrl/⌘` + `C` `X` `V` | Copy, cut, paste notes as text |
+| `Ctrl/⌘` + `Z`, + `Shift` | Undo, redo |
 
-Bar lines follow the time signature automatically. The text view (and exported `.txt` files) use a small plain-text format described in the [spec](docs/spec.md#105-text-format).
+Bar lines follow the time signature automatically. Every beat has the same width, and each line holds whole bars, as many as fit in the **beats per line** you pick on the control panel.
+
+Lyrics go in the lyrics box next to the melody, one item per note (a `-` that holds a note counts as a note; rests don't): a Chinese character, or an English word. `hap-py` splits a word over two notes, a `-` on its own keeps singing the word before it, and `0` marks a note that isn't sung. You can write the lyrics before the notes: what doesn't fit yet waits after the last note.
+
+Exported `.txt` files use a small plain-text format described in the [spec](docs/spec.md#105-text-format), with lyrics after a second `---` line ([§11.3](docs/spec.md#113-lyrics)).
 
 On phones (landscape) scores are view-only: the jianpu shows one row and the keyboard slides to follow falling notes.
 
