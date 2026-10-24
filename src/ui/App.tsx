@@ -5,7 +5,7 @@ import { codeLabel } from "../core/keymap";
 import { attachKeyboardInput, isTyping } from "../input/keyboard-input";
 import { backspaceHold, sendScoreCommand, songSwitch, type ScoreCommand } from "../app/commands";
 import { SCORE_VIEWS } from "../app/settings";
-import { INSTRUMENTS } from "../audio/instruments";
+import { stepInstrument } from "../audio/instruments";
 import { RESTART_HOLD_MS } from "../core/shortcuts";
 import { listScores } from "../score/library";
 import { HoldRing } from "./HoldRing";
@@ -176,8 +176,7 @@ export function App() {
         }
         case "BracketLeft":
         case "BracketRight": {
-          const i = Math.max(0, INSTRUMENTS.findIndex((x) => x.id === s.instrumentId));
-          const next = INSTRUMENTS[(i + (e.code === "BracketLeft" ? -1 : 1) + INSTRUMENTS.length) % INSTRUMENTS.length];
+          const next = stepInstrument(s.instrumentId, e.code === "BracketLeft" ? -1 : 1);
           engine.unlock();
           settings.set({ instrumentId: next.id });
           showToast(t(next.nameKey));
