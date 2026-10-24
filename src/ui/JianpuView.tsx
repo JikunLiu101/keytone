@@ -3,7 +3,7 @@
  * editor, which adds a cursor and click-to-place.
  */
 import { codeLabel } from "../core/keymap";
-import { keyHint, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics } from "../score/jianpu-layout";
+import { keyHint, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics, type Slot } from "../score/jianpu-layout";
 import type { ScoreLyrics } from "../score/lyrics";
 import type { KeyName, Pitch, Score } from "../score/score";
 
@@ -89,31 +89,24 @@ interface GlyphProps {
   width: number;
   /** Practice: "current" is the note to play next, "played" is behind it. */
   practice?: "current" | "played" | "miss";
+  /** Editor: inside the selection; or the note the lyric under the cursor falls on. */
+  selected?: boolean;
+  linked?: boolean;
   /** Draw the editor cursor just before (or after) this glyph. */
   caretBefore?: boolean;
   caretAfter?: boolean;
-  onPick?: (cursor: number) => void;
 }
 
-function GlyphView({ glyph, width, practice, caretBefore, caretAfter, onPick }: GlyphProps) {
+function GlyphView({ glyph, width, practice, selected, linked, caretBefore, caretAfter }: GlyphProps) {
   const single = glyph.type === "note" && glyph.pitches.length === 1 ? glyph.pitches[0] : null;
   const high = single && single.octave > 0 ? single.octave : 0;
   const low = single && single.octave < 0 ? -single.octave : 0;
   return (
     <span
-      className={`j-glyph j-glyph--${glyph.type}${practice ? ` j-glyph--${practice}` : ""}`}
+      className={`j-glyph j-glyph--${glyph.type}${practice ? ` j-glyph--${practice}` : ""}${selected ? " j-glyph--selected" : ""}${linked ? " j-glyph--linked" : ""}`}
       style={{ width }}
       data-event={glyph.event}
-      onPointerDown={
-        onPick
-          ? (e) => {
-              e.preventDefault();
-              // Left half of a note: cursor before it; right half: after it.
-              const box = e.currentTarget.getBoundingClientRect();
-              onPick(e.clientX < box.left + box.width / 2 && glyph.type !== "dash" ? glyph.event : glyph.event + 1);
-            }
-          : undefined
-      }
+      data-dash={glyph.type === "dash" || undefined}
     >
       {caretBefore && <i className="j-caret j-caret--before" />}
       <span className="j-high">
@@ -159,7 +152,9 @@ interface LinesProps {
   /** Editor cursor (insertion point between events); omit on the sheet. */
   cursor?: number;
   eventCount?: number;
-  onPick?: (cursor: number) => void;
+  /** Editor: selected events [start, end), and a slot to light up. */
+  selection?: [number, number] | null;
+  highlight?: Slot | null;
   /** Lyrics drawn under the notes (spec §11.3); omit to draw none. */
   lyrics?: ScoreLyrics | null;
 }
@@ -199,7 +194,7 @@ function LyricsRow({ placed, current }: { placed: PlacedLyrics; current?: number
 /** Below this many px a gap before a group is rounding noise, not a rest in time. */
 const MIN_LEAD = 0.5;
 
-export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, onPick, lyrics }: LinesProps) {
+export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, selection, highlight, lyrics }: LinesProps) {
   const extra = endsScore && lyrics ? lyrics.extra.flatMap((item) => (item.kind === "word" ? [item.text] : [])) : [];
   return (
     <>
@@ -243,9 +238,10 @@ export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, 
                               glyph={g}
                               width={g.span * metrics.beat}
                               practice={practiceClass(g, current, miss)}
+                              selected={!!selection && g.event >= selection[0] && g.event < selection[1]}
+                              linked={!!highlight && !!g.slot && g.slot.event === highlight.event && g.slot.ext === highlight.ext}
                               caretBefore={caretBefore}
                               caretAfter={caretAfter}
-                              onPick={onPick}
                             />
                           );
                         })}
