@@ -1587,6 +1587,79 @@ kbd {
   height: 0.3em;
 }
 
+/*
+ * Lyrics (spec §11.3): a row under the notes, below the key hints. Words are
+ * placed in px from JS; a thin bracket ties the parts of a split word, and a
+ * line shows a word held over the following beats.
+ */
+.j-line--lyrics {
+  position: relative;
+  padding-bottom: 1.4em;
+}
+
+.j-lyrics {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.85em;
+  font-size: 0.75em;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.j-lyric {
+  position: absolute;
+  top: 0.15em;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--j-ink);
+}
+
+/* Punctuation hangs after the word, so the word itself stays centred under its note. */
+.j-lyric-tail {
+  position: absolute;
+  left: 100%;
+}
+
+.j-lyric--played {
+  opacity: 0.38;
+  transition: opacity 260ms ease-out;
+}
+
+.j-lyric--current {
+  color: #fff;
+  text-shadow: 0 0 0.6em rgba(108, 196, 255, 0.9);
+}
+
+/* A word on a dash: the lyrics are most likely out of line with the notes. */
+.j-lyric--misplaced {
+  color: var(--warm);
+}
+
+.j-lyric-bracket {
+  position: absolute;
+  top: 1.35em;
+  height: 0.3em;
+  border: 1px solid rgba(238, 244, 255, 0.5);
+  border-top: none;
+  border-radius: 0 0 0.3em 0.3em;
+}
+
+.j-lyric-hold {
+  position: absolute;
+  top: 1.05em;
+  height: 1px;
+  background: rgba(238, 244, 255, 0.55);
+}
+
+.j-lyrics-extra {
+  margin: 0.5em 0 0;
+  font-size: 0.75em;
+  color: var(--j-ink-dim);
+  opacity: 0.75;
+}
+
 /* ---------- Score editor ---------- */
 
 /*

@@ -63,6 +63,17 @@ describe("parseScore", () => {
   it("reads a body with no header", () => {
     expect(parseScore("1 2 3").score.events).toHaveLength(3);
   });
+
+  it("reads lyrics after a second --- line", () => {
+    const { score, errors } = parseScore("title: x\n---\n1 2 3 -\n---\n一二三\n四");
+    expect(errors).toEqual([]);
+    expect(score.events).toHaveLength(3);
+    expect(score.lyrics).toBe("一二三\n四");
+  });
+
+  it("has no lyrics without a second --- line", () => {
+    expect(parseScore("title: x\n---\n1 2 3").score.lyrics).toBe("");
+  });
 });
 
 describe("serializeScore", () => {
@@ -74,6 +85,14 @@ describe("serializeScore", () => {
     }
     const tricky = body("[1 3 5]./ #4'' b2, 0// -", "title: x\n").score;
     expect(parseScore(serializeScore(tricky)).score).toEqual(tricky);
+  });
+
+  it("writes lyrics after a second --- line, and nothing when there are none", () => {
+    const withLyrics = { ...body("1 2", "title: x\n").score, lyrics: "hap-py --" };
+    const text = serializeScore(withLyrics);
+    expect(text.endsWith("---\nhap-py --\n")).toBe(true);
+    expect(parseScore(text).score).toEqual(withLyrics);
+    expect(serializeScore(body("1 2", "title: x\n").score).match(/---/g)).toHaveLength(1);
   });
 });
 

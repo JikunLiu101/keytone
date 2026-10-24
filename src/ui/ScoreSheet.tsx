@@ -5,6 +5,7 @@ import { layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type
 import { PRACTICE_START, isComplete, phraseBackTarget, phraseStarts, practicePress, practiceSteps } from "../score/practice";
 import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
+import { buildLyrics } from "../score/lyrics";
 import { barBeats } from "../score/score";
 import { JianpuLines, ScoreMeta } from "./JianpuView";
 
@@ -47,7 +48,7 @@ export function useCurrentScore() {
  */
 export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   const t = useT();
-  const { scoreKeyHints, practice, beatsPerLine } = useSettings();
+  const { scoreKeyHints, scoreLyrics, practice, beatsPerLine } = useSettings();
   const resolved = useCurrentScore();
   const { score } = resolved;
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -61,7 +62,8 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   const beats = compact ? Math.max(4, Math.min(beatsPerLine, Math.floor(box.width / MIN_PHONE_BEAT))) : beatsPerLine;
   // A couple of px spare so rounding never pushes the last bar line out of view.
   const metrics = useMemo(() => sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(score.time)), [box.width, beats, score.time]);
-  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [hints, hidden, metrics.font]);
+  const lyrics = useMemo(() => (scoreLyrics ? buildLyrics(score) : null), [score, scoreLyrics]);
+  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [hints, hidden, metrics.font, !!lyrics]);
 
   const lines = useMemo(() => layoutLines(score, beats), [score, beats]);
   const pages = useMemo(() => layoutPages(lines, compact ? 1 : box.linesPerPage), [lines, compact, box.linesPerPage]);
@@ -199,6 +201,7 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
           key={current}
           lines={pages[current]}
           metrics={metrics}
+          lyrics={lyrics}
           endsScore={current === pageCount - 1}
           current={currentEvent}
           miss={miss}

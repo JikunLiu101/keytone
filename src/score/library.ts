@@ -102,7 +102,8 @@ export function resolveScore(id: string, language: Language): ResolvedScore {
     id: builtin.id,
     title: builtin.titles[language],
     builtin: true,
-    score: parseCached(builtin.id, builtin.text).score,
+    // Lyrics follow the UI language, like the title.
+    score: { ...parseCached(builtin.id, builtin.text).score, lyrics: builtin.lyrics[language] },
   };
 }
 

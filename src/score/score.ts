@@ -51,6 +51,8 @@ export interface Score {
   /** Beats before the first full bar (an upbeat). */
   pickup: number;
   events: ScoreEvent[];
+  /** One line of lyrics, as typed (spec §11.3); "" when there are none. */
+  lyrics: string;
 }
 
 export type ParseErrorCode =
@@ -84,7 +86,7 @@ export interface ParseResult {
 }
 
 export function emptyScore(title = ""): Score {
-  return { title, key: "C", time: "4/4", tempo: 100, pickup: 0, events: [] };
+  return { title, key: "C", time: "4/4", tempo: 100, pickup: 0, events: [], lyrics: "" };
 }
 
 /** Length of one event in beats. */
@@ -256,6 +258,7 @@ export function parseScore(text: string): ParseResult {
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   const separator = lines.findIndex((l) => l.trim() === "---");
   let bodyStart = 0;
+  let bodyEnd = lines.length;
   if (separator >= 0) {
     for (let n = 0; n < separator; n++) {
       const m = /^\s*([A-Za-z]+)\s*:\s*(.*?)\s*$/.exec(lines[n]);
@@ -263,8 +266,14 @@ export function parseScore(text: string): ParseResult {
       else if (lines[n].trim()) errors.push(error(n + 1, "badHeader", `Expected "name: value"`, lines[n].trim()));
     }
     bodyStart = separator + 1;
+    // A second "---" starts the lyrics.
+    const lyricsSeparator = lines.findIndex((l, n) => n > separator && l.trim() === "---");
+    if (lyricsSeparator >= 0) {
+      bodyEnd = lyricsSeparator;
+      score.lyrics = lines.slice(lyricsSeparator + 1).join("\n").trim();
+    }
   }
-  score.events = readBody(lines.slice(bodyStart).join("\n"), bodyStart + 1, errors);
+  score.events = readBody(lines.slice(bodyStart, bodyEnd).join("\n"), bodyStart + 1, errors);
   for (const e of score.events) {
     if (e.pitches.some((p) => !inRange(pitchMidi(p, score.key)))) {
       errors.push(error(0, "outOfRange", "Some notes are outside the keyboard's range"));
@@ -317,5 +326,6 @@ export function serializeScore(score: Score, barsPerLine = 4): string {
     }
   }
   if (current.length) out.push(current.join(" "));
-  return `${header.join("\n")}\n---\n${out.join("\n")}\n`;
+  const lyrics = score.lyrics.trim() ? `---\n${score.lyrics.trim()}\n` : "";
+  return `${header.join("\n")}\n---\n${out.join("\n")}\n${lyrics}`;
 }
