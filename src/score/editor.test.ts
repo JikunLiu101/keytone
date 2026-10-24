@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edit, editorActionForCode, pasteEvents, selectedEvents, type EditorAction, type EditorState } from "./editor";
+import { edit, editorActionForCode, pasteEvents, pasteNotice, selectedEvents, type EditorAction, type EditorState } from "./editor";
 import { emptyScore, eventBeats, parseScore, serializeEvents, serializeScore } from "./score";
 
 function run(...actions: EditorAction[]): EditorState {
@@ -140,6 +140,34 @@ describe("insert (paste)", () => {
     expect(junk.events).toHaveLength(2);
     expect(junk.errors).toHaveLength(1);
     expect(pasteEvents("hello").events).toEqual([]);
+  });
+});
+
+describe("modifiers with a selection", () => {
+  it("apply to the last selected note, even when the selection was made leftwards", () => {
+    // 1 2 3 4, cursor at the end, Shift+← twice: 3 and 4 are selected and the cursor sits before 3.
+    const sel = edit(edit(run(note(1), note(2), note(3), note(4)), { type: "select", cursor: 3 }).state, { type: "select", cursor: 2 }).state;
+    const s = edit(sel, { type: "extend" }).state;
+    expect(body(s)).toBe("1 2 3 4 - |");
+    expect(s.anchor ?? null).toBeNull();
+    expect(s.cursor).toBe(4);
+  });
+});
+
+describe("pasteNotice", () => {
+  it("says nothing for a clean paste and names what went wrong otherwise", () => {
+    const s = run(note(1));
+    const clean = edit(s, { type: "insert", events: pasteEvents("2").events });
+    expect(pasteNotice(clean, [])).toBeNull();
+    const partial = pasteEvents("2 x");
+    expect(pasteNotice(edit(s, { type: "insert", events: partial.events }), partial.errors)).toBe("skipped");
+  });
+
+  it("never says pasted when nothing was: out of range, or a read-only score", () => {
+    const s = run(note(1));
+    const junk = pasteEvents("1'''' x");
+    expect(pasteNotice(edit(s, { type: "insert", events: junk.events }), junk.errors)).toBe("range");
+    expect(pasteNotice(null, junk.errors)).toBe("readOnly");
   });
 });
 

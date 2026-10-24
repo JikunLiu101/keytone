@@ -1592,9 +1592,9 @@ kbd {
  * placed in px from JS; a thin bracket ties the parts of a split word, and a
  * line shows a word held over the following beats.
  */
+/* The room under the notes and the lyrics font size are set from JS (never under 11 px). */
 .j-line--lyrics {
   position: relative;
-  padding-bottom: 1.4em;
 }
 
 .j-lyrics {
@@ -1603,7 +1603,6 @@ kbd {
   right: 0;
   bottom: 0;
   height: 1.85em;
-  font-size: 0.75em;
   line-height: 1.2;
   pointer-events: none;
 }
@@ -1655,7 +1654,6 @@ kbd {
 
 .j-lyrics-extra {
   margin: 0.5em 0 0;
-  font-size: 0.75em;
   color: var(--j-ink-dim);
   opacity: 0.75;
 }
@@ -1900,13 +1898,26 @@ kbd {
   border-radius: 8px;
 }
 
+/* A line that wraps indents its later rows, so each sheet line still reads as one. */
+.mt-line {
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+}
+
 .mt-line + .mt-line {
   border-top: 1px dashed rgba(255, 255, 255, 0.06);
 }
 
+/* A bar is never split across rows. */
+.mt-bar {
+  display: inline-block;
+  white-space: nowrap;
+  text-indent: 0;
+}
+
 .mt-tok {
   position: relative;
-  padding: 0.1em 0.28em;
+  padding: 0.1em 0.12em;
   border-radius: 3px;
 }
 
@@ -1923,7 +1934,6 @@ kbd {
 }
 
 .mt-barline {
-  margin: 0 0.35em;
   color: var(--text-dim);
 }
 

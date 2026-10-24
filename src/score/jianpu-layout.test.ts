@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { keyHint, layoutBars, layoutLines, layoutPages, pageOfEvent, placeLine, placeLyrics, sameSheetBox, sheetMetrics } from "./jianpu-layout";
+import { keyHint, layoutBars, layoutLines, layoutPages, lyricFont, pageOfEvent, placeLine, placeLyrics, sameSheetBox, sheetMetrics } from "./jianpu-layout";
 import { alignLyrics, lyricSlots, parseLyrics, slotKey } from "./lyrics";
 import { parseScore } from "./score";
 
@@ -202,6 +202,13 @@ describe("placeLyrics", () => {
 
   it("marks a word that falls on a dash", () => {
     expect(place("1 - 2", "一 二 三").words.map((w) => w.misplaced)).toEqual([false, true, false]);
+  });
+});
+
+describe("lyricFont", () => {
+  it("is three quarters of the digit size, but never under 11 px", () => {
+    expect(lyricFont(20)).toBe(15);
+    expect(lyricFont(11)).toBe(11);
   });
 });
 

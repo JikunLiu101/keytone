@@ -3,7 +3,7 @@
  * editor, which adds a cursor and click-to-place.
  */
 import { codeLabel } from "../core/keymap";
-import { keyHint, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics, type Slot } from "../score/jianpu-layout";
+import { keyHint, lyricFont, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics, type Slot } from "../score/jianpu-layout";
 import type { ScoreLyrics } from "../score/lyrics";
 import type { KeyName, Pitch, Score } from "../score/score";
 
@@ -159,9 +159,6 @@ interface LinesProps {
   lyrics?: ScoreLyrics | null;
 }
 
-/** Lyrics font, as a share of the digit size. */
-export const LYRIC_EM = 0.75;
-
 function lyricClass(word: PlacedLyrics["words"][number], current: number | undefined): string {
   let c = "j-lyric";
   if (word.misplaced) c += " j-lyric--misplaced";
@@ -171,10 +168,13 @@ function lyricClass(word: PlacedLyrics["words"][number], current: number | undef
   return c;
 }
 
+/** Height of the lyrics row, in lyrics-font em. */
+const LYRICS_ROW_EM = 1.85;
+
 /** The lyrics row of one line, drawn over the room kept free under its notes. */
-function LyricsRow({ placed, current }: { placed: PlacedLyrics; current?: number }) {
+function LyricsRow({ placed, current, font }: { placed: PlacedLyrics; current?: number; font: number }) {
   return (
-    <div className="j-lyrics" aria-hidden="true">
+    <div className="j-lyrics" aria-hidden="true" style={{ fontSize: font }}>
       {placed.brackets.map((b, i) => (
         <i key={`b${i}`} className="j-lyric-bracket" style={{ left: b.x1, width: Math.max(0, b.x2 - b.x1) }} />
       ))}
@@ -202,13 +202,18 @@ const MIN_LEAD = 0.5;
 
 export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, selection, highlight, lyrics }: LinesProps) {
   const extra = endsScore && lyrics ? lyrics.extra.flatMap((item) => (item.kind === "word" ? [item.text] : [])) : [];
+  const lyricsFont = lyricFont(metrics.font);
   return (
     <>
       {lines.map((line, li) => {
         const isLast = li === lines.length - 1;
-        const lyricsRow = lyrics ? placeLyrics(placeLine(line, metrics), lyrics.itemAt, metrics.font * LYRIC_EM) : null;
+        const lyricsRow = lyrics ? placeLyrics(placeLine(line, metrics), lyrics.itemAt, lyricsFont) : null;
         return (
-          <div key={li} className={`j-line${lyrics ? " j-line--lyrics" : ""}`}>
+          <div
+            key={li}
+            className={`j-line${lyrics ? " j-line--lyrics" : ""}`}
+            style={lyrics ? { paddingBottom: LYRICS_ROW_EM * lyricsFont } : undefined}
+          >
             {line.bars.map((bar, bi) => {
               // Bars are a fixed number of beats wide, whatever is in them. The
               // bar line sits in the middle of the gap after the bar.
@@ -257,12 +262,16 @@ export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, 
                 </div>
               );
             })}
-            {lyricsRow && <LyricsRow placed={lyricsRow} current={current} />}
+            {lyricsRow && <LyricsRow placed={lyricsRow} current={current} font={lyricsFont} />}
           </div>
         );
       })}
       {/* Lyrics with no note left to sit on wait here, dimmed. */}
-      {extra.length > 0 && <p className="j-lyrics-extra">{extra.join(" ")}</p>}
+      {extra.length > 0 && (
+        <p className="j-lyrics-extra" style={{ fontSize: lyricsFont }}>
+          {extra.join(" ")}
+        </p>
+      )}
     </>
   );
 }
