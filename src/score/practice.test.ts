@@ -6,6 +6,7 @@ import {
   phraseStarts,
   practicePress,
   practiceSteps,
+  practiceTarget,
   type PracticeState,
 } from "./practice";
 import { parseScore } from "./score";
@@ -71,5 +72,22 @@ describe("phrases", () => {
     expect(phraseBackTarget(starts, 5)).toBe(3);
     expect(phraseBackTarget(starts, 0)).toBe(0);
     expect(phraseBackTarget(starts, s.length)).toBe(8);
+  });
+});
+
+describe("practiceTarget", () => {
+  const starts = [0, 4, 8];
+
+  it("moves by phrase, by step, or back to the start", () => {
+    expect(practiceTarget("phraseBack", 6, starts, false)).toBe(4);
+    expect(practiceTarget("stepBack", 6, starts, false)).toBe(5);
+    expect(practiceTarget("stepForward", 6, starts, false)).toBe(7);
+    expect(practiceTarget("restart", 6, starts, false)).toBe(0);
+  });
+
+  it("starts again with Enter (play) once the score is complete, and ignores it before", () => {
+    expect(practiceTarget("playPause", 12, starts, true)).toBe(0);
+    expect(practiceTarget("playPause", 6, starts, false)).toBeNull();
+    expect(practiceTarget("speedUp", 6, starts, false)).toBeNull();
   });
 });

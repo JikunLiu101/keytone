@@ -68,6 +68,28 @@ export function phraseStarts(score: Score, steps: PracticeStep[]): number[] {
 }
 
 /**
+ * The step a shortcut moves practice to, or null when it doesn't apply.
+ * Enter (play) starts again once the score is complete, as it does in the
+ * falling-notes view.
+ */
+export function practiceTarget(command: string, step: number, starts: number[], complete: boolean): number | null {
+  switch (command) {
+    case "phraseBack":
+      return phraseBackTarget(starts, step);
+    case "restart":
+      return 0;
+    case "stepBack":
+      return step - 1;
+    case "stepForward":
+      return step + 1;
+    case "playPause":
+      return complete ? 0 : null;
+    default:
+      return null;
+  }
+}
+
+/**
  * Where Backspace goes from step `current`: the start of the current phrase,
  * or of the previous one when already at a phrase start.
  */

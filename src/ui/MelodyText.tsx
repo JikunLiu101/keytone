@@ -18,12 +18,15 @@ interface MelodyTextProps {
   highlight?: Slot | null;
   label: string;
   readOnly: boolean;
+  /** Hidden while another box (the lyrics) has the text cursor. */
+  showCaret?: boolean;
 }
 
 const Caret = () => <i className="mt-caret" aria-hidden="true" />;
 
-export function MelodyText({ score, lines, cursor, selection, highlight, label, readOnly }: MelodyTextProps) {
+export function MelodyText({ score, lines, cursor, selection, highlight, label, readOnly, showCaret = true }: MelodyTextProps) {
   const count = score.events.length;
+  const caret = !readOnly && showCaret;
   return (
     <div className="melody-text" role="textbox" aria-multiline="true" aria-readonly={readOnly} aria-label={label} tabIndex={0}>
       {lines.map((line, li) => (
@@ -42,7 +45,7 @@ export function MelodyText({ score, lines, cursor, selection, highlight, label, 
                     <span key={k}>
                       {k > 0 && " "}
                       <span className={cls} data-event={g.event} data-dash={dash || undefined}>
-                        {!readOnly && g.event === cursor && !dash && <Caret />}
+                        {caret && g.event === cursor && !dash && <Caret />}
                         {dash ? "-" : writeEventHead(score.events[g.event])}
                       </span>
                     </span>
@@ -54,10 +57,10 @@ export function MelodyText({ score, lines, cursor, selection, highlight, label, 
               </span>{" "}
             </span>
           ))}
-          {!readOnly && li === lines.length - 1 && cursor === count && <Caret />}
+          {caret && li === lines.length - 1 && cursor === count && <Caret />}
         </div>
       ))}
-      {!readOnly && count === 0 && <Caret />}
+      {caret && count === 0 && <Caret />}
     </div>
   );
 }
