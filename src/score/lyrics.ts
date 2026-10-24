@@ -122,6 +122,19 @@ export function alignLyrics(slots: Slot[], items: LyricItem[]): AlignedLyrics {
   return { bySlot, extra: items.slice(slots.length), misplaced };
 }
 
+/**
+ * The item a text cursor at `offset` is in or just after (the first item
+ * when it is in leading space); −1 when there are no items.
+ */
+export function itemAt(items: LyricItem[], offset: number): number {
+  if (!items.length) return -1;
+  let found = 0;
+  items.forEach((item, i) => {
+    if (item.from <= offset) found = i;
+  });
+  return found;
+}
+
 /** Key of a slot, for looking items up by slot. */
 export function slotKey(slot: Slot): string {
   return `${slot.event}:${slot.ext}`;
