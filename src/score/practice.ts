@@ -47,3 +47,32 @@ export function practicePress(steps: PracticeStep[], state: PracticeState, midi:
   if (step.midi.every((m) => pressed.includes(m))) return { ...state, step: state.step + 1, pressed: [] };
   return { ...state, pressed };
 }
+
+/**
+ * Steps that begin a phrase: the first one, and any that come right after a
+ * rest or after a held note (one with "-"). Backspace jumps between these.
+ */
+export function phraseStarts(score: Score, steps: PracticeStep[]): number[] {
+  const starts: number[] = [];
+  steps.forEach((step, i) => {
+    if (i === 0) {
+      starts.push(0);
+      return;
+    }
+    const prev = steps[i - 1];
+    const held = score.events[prev.event].extensions > 0;
+    const restBetween = score.events.slice(prev.event + 1, step.event).some((e) => e.kind === "rest");
+    if (held || restBetween) starts.push(i);
+  });
+  return starts;
+}
+
+/**
+ * Where Backspace goes from step `current`: the start of the current phrase,
+ * or of the previous one when already at a phrase start.
+ */
+export function phraseBackTarget(starts: number[], current: number): number {
+  let target = 0;
+  for (const s of starts) if (s < current) target = s;
+  return target;
+}

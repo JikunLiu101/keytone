@@ -177,6 +177,37 @@ export class FallingSession {
     return { kind: "hit", note: best };
   }
 
+  /** The step being played now: the practice step, or the first with a note still to come. */
+  currentStep(): number {
+    if (this.practice) return this.step;
+    const next = this.notes.find((n) => n.state === "pending");
+    return next ? next.step : this.timeline.steps;
+  }
+
+  /**
+   * Jump back (or forward) to a step: its notes and everything after are to
+   * play again, and the clock starts a little before it so its bar falls in.
+   */
+  seekStep(step: number, lead = 1.2): void {
+    const target = Math.max(0, Math.min(this.timeline.steps, step));
+    for (const n of this.notes) {
+      if (n.step < target) {
+        // Skipped forward over it: count as played in practice, leave as-is otherwise.
+        if (this.practice && n.state === "pending") n.state = "hit";
+        continue;
+      }
+      if (n.state === "hit" && !this.practice) this.perfect--;
+      if (n.state === "missed") this.missing--;
+      n.state = "pending";
+      n.judgedAt = undefined;
+    }
+    this.step = target;
+    const first = this.notes.find((n) => n.step === target);
+    const start = first ? first.start : this.timeline.end;
+    this.time = Math.max(-this.timeline.bar, start - lead * this.speed);
+    if (this.status === "done") this.status = "playing";
+  }
+
   private judge(note: FallNote): void {
     note.state = "hit";
     note.judgedAt = this.time;

@@ -9,6 +9,7 @@ import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 import { Select } from "./Select";
+import { songSwitch } from "../app/commands";
 
 interface ControlPanelProps {
   onOpenBindings: () => void;
@@ -21,6 +22,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
   const s = useSettings();
   // Re-render when the user's scores change, so the menu stays current.
   useSyncExternalStore(userScores.subscribe, userScores.get);
+  const glide = useSyncExternalStore(songSwitch.subscribe, songSwitch.get);
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const shift = useSyncExternalStore(keyboard.subscribe, keyboard.getOctaveShift);
   const sustain = useSyncExternalStore(hub.subscribe, hub.getSustain);
@@ -73,7 +75,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           <span className="tagline">{t("app.tagline")}</span>
         </div>
         <div className="panel-actions">
-          <button className="button button--ghost" onClick={onOpenBindings}>
+          <button className="button button--ghost" onClick={onOpenBindings} title={`${t("panel.keys")} (F1)`}>
             {t("panel.keys")}
           </button>
           <button className="button button--ghost" onClick={onOpenCredits}>
@@ -106,7 +108,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
                     aria-checked={active}
                     aria-busy={loading || undefined}
                     aria-label={t(inst.nameKey)}
-                    title={t(inst.nameKey)}
+                    title={`${t(inst.nameKey)} ([ / ])`}
                     className={`pad pad--${state}`}
                     onClick={() => {
                       engine.unlock();
@@ -134,7 +136,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       )}
 
       <div className="panel-row panel-row--controls">
-        <label className="fader">
+        <label className="fader" title={`${t("panel.volume")} (- / =)`}>
           <span className="control-label">{t("panel.volume")}</span>
           <input
             type="range"
@@ -208,6 +210,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
               role="radio"
               aria-checked={s.scoreView === view}
               className={`segment ${s.scoreView === view ? "segment--on" : ""}`}
+              title={`${t(`score.view.${view}`)} (\`)`}
               onClick={() => settings.set({ scoreView: view })}
             >
               {t(`score.view.${view}`)}
@@ -217,6 +220,8 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
         <Select
           className="score-select"
           label={t("score.choose")}
+          hint="Tab / Shift+Tab"
+          glide={glide.target ? { value: glide.target, token: glide.token } : undefined}
           value={s.scoreId}
           disabled={s.scoreView === "off"}
           onChange={(id) => settings.set({ scoreId: id })}
@@ -241,13 +246,13 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
           role="switch"
           aria-checked={s.practice}
           disabled={s.scoreView === "off"}
-          title={t("score.practiceHelp")}
+          title={`${t("score.practiceHelp")} (P)`}
           onClick={() => settings.set({ practice: !s.practice })}
         >
           <span className="led" aria-hidden="true" />
           {t("score.practice")}
         </button>
-        <button className="button button--ghost score-edit-btn" onClick={onOpenEditor}>
+        <button className="button button--ghost score-edit-btn" onClick={onOpenEditor} title={`${t("score.edit")} (E)`}>
           {t("score.edit")}
         </button>
       </div>

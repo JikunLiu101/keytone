@@ -17,7 +17,19 @@ interface SelectProps<T> {
   label: string;
   disabled?: boolean;
   className?: string;
+  /** Shortcut shown in the tooltip, e.g. "Tab / Shift+Tab". */
+  hint?: string;
+  /**
+   * Play a slow "open, slide to this option, choose it, close" animation
+   * (for keyboard shortcuts). A new token starts a new run.
+   */
+  glide?: { value: T; token: number };
 }
+
+/** Glide timing (ms): open → start sliding → choose → close. Under 2 s in all. */
+const GLIDE_SLIDE = 450;
+const GLIDE_CHOOSE = 1150;
+const GLIDE_CLOSE = 1750;
 
 interface Placement {
   left: number;
@@ -38,13 +50,25 @@ const MARGIN = 8;
  * clipped by panels or the 3D glass. Keyboard: arrows, Home/End, Enter/Space,
  * Escape, Tab, and typing a letter to jump.
  */
-export function Select<T extends string | number>({ value, options, onChange, label, disabled, className }: SelectProps<T>) {
+export function Select<T extends string | number>({
+  value,
+  options,
+  onChange,
+  label,
+  disabled,
+  className,
+  hint,
+  glide,
+}: SelectProps<T>) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [place, setPlace] = useState<Placement | null>(null);
+  const [gliding, setGliding] = useState(false);
+  // The highlight is one element that slides between options.
+  const [glow, setGlow] = useState<{ top: number; height: number } | null>(null);
   const selectedIndex = Math.max(0, options.findIndex((o) => o.value === value));
   const current = options[selectedIndex];
 
@@ -96,7 +120,8 @@ export function Select<T extends string | number>({ value, options, onChange, la
   const shown = open && place !== null;
   useEffect(() => {
     if (!shown) return;
-    listRef.current?.focus();
+    // A shortcut-driven glide leaves focus alone, so the next Tab still works.
+    if (!gliding) listRef.current?.focus();
     const onDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (!listRef.current?.contains(target) && !triggerRef.current?.contains(target)) close(false);
@@ -104,6 +129,41 @@ export function Select<T extends string | number>({ value, options, onChange, la
     window.addEventListener("pointerdown", onDown, true);
     return () => window.removeEventListener("pointerdown", onDown, true);
   }, [shown]);
+
+  // Slide the highlight to the active option.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-index="${active}"]`);
+    if (el) setGlow({ top: el.offsetTop, height: el.offsetHeight });
+  }, [shown, active, place]);
+
+  // Shortcut glide: open, slide to the target, choose it, close.
+  const lastGlide = useRef(glide?.token);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  useEffect(() => {
+    if (!glide || glide.token === lastGlide.current) return;
+    lastGlide.current = glide.token;
+    const to = options.findIndex((o) => o.value === glide.value);
+    if (to < 0) return;
+    if (disabled) {
+      onChangeRef.current(glide.value);
+      return;
+    }
+    setGliding(true);
+    setActive(selectedIndex);
+    setOpen(true);
+    const timers = [
+      window.setTimeout(() => setActive(to), GLIDE_SLIDE),
+      window.setTimeout(() => onChangeRef.current(glide.value), GLIDE_CHOOSE),
+      window.setTimeout(() => {
+        setOpen(false);
+        setPlace(null);
+        setGliding(false);
+      }, GLIDE_CLOSE),
+    ];
+    return () => timers.forEach((id) => window.clearTimeout(id));
+  }, [glide?.token]);
 
   // Keep the highlighted option in view.
   useEffect(() => {
@@ -171,7 +231,7 @@ export function Select<T extends string | number>({ value, options, onChange, la
         aria-expanded={open}
         aria-controls={open ? `${id}-list` : undefined}
         aria-label={label}
-        title={current?.label}
+        title={hint ? `${current?.label ?? ""} (${hint})` : current?.label}
         disabled={disabled}
         onClick={() => (open ? close() : openList())}
         onKeyDown={onTriggerKey}
@@ -185,7 +245,7 @@ export function Select<T extends string | number>({ value, options, onChange, la
           <ul
             ref={listRef}
             id={`${id}-list`}
-            className={`select-list ${place.above ? "select-list--above" : ""}`}
+            className={`select-list ${place.above ? "select-list--above" : ""} ${gliding ? "select-list--glide" : ""}`}
             role="listbox"
             tabIndex={-1}
             aria-label={label}
@@ -199,6 +259,14 @@ export function Select<T extends string | number>({ value, options, onChange, la
             }}
             onKeyDown={onListKey}
           >
+            {glow && (
+              <li
+                className="select-glow"
+                role="presentation"
+                aria-hidden="true"
+                style={{ transform: `translateY(${glow.top}px)`, height: glow.height }}
+              />
+            )}
             {items.map(({ o, i, heading }) => [
               heading && (
                 <li key={`h-${i}`} className="select-heading" role="presentation">
