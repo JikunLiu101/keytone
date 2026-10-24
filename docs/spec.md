@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Version 4 (score layout, lyrics and editor, §11) is implemented, not yet deployed. Version 5 (more instruments and a compact instrument picker, §12) is agreed and being built. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Version 4 (score layout, lyrics and editor, §11) is implemented, not yet deployed. Version 5 (more instruments and a compact instrument picker, §12) is implemented, not yet deployed. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 

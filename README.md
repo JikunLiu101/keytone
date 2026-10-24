@@ -8,7 +8,7 @@ Play an electronic keyboard with your computer keyboard, right in the browser. N
 
 ## Features
 
-- 17 curated sounds in 5 families: pianos, organs and harpsichord, ensemble and winds, plucked and mallets, and synths
+- 21 curated sounds in 6 families: pianos, organs, strings (violin, viola, cello, ensemble), winds (flute, brass, harmonica), plucked and mallets, and voice and synth, picked from a small LCD-style display that opens a list by family
 - A 3D keyboard with an upright frosted-glass panel where soft light bars rise as you play, in a cool (Aurora) or warm (Amber) palette
 - Scores on the glass: read along in jianpu (numbered notation), or play along with falling notes that drop onto their keys
 - Jianpu laid out with every beat the same width and whole bars on each line (choose 8–32 beats a line)
@@ -18,7 +18,7 @@ Play an electronic keyboard with your computer keyboard, right in the browser. N
 - Play with the computer keyboard, click and drag on the on-screen keys, or use touch (multi-finger)
 - Hold-to-shift octave keys and a sustain pedal, all rebindable
 - Volume, velocity (shown as dynamics, pp to fff), reverb and light-bar controls
-- English and Chinese UI; settings are remembered in your browser
+- English and Chinese UI that keeps every control in place when you switch; settings are remembered in your browser
 - Respects "reduce motion" and works with keyboard and screen readers
 
 ## Run locally
