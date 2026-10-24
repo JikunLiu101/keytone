@@ -10,6 +10,9 @@ import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
 export const SCORE_VIEWS = ["off", "jianpu", "falling"] as const;
 export type ScoreView = (typeof SCORE_VIEWS)[number];
 
+/** Beats per jianpu line the player can choose (spec §11.2). */
+export const BEATS_PER_LINE = [8, 12, 16, 20, 24, 32] as const;
+
 export interface Settings {
   instrumentId: string;
   /** Master volume 0–1. */
@@ -27,6 +30,8 @@ export interface Settings {
   scoreId: string;
   /** Show the computer key under each jianpu note. */
   scoreKeyHints: boolean;
+  /** Beats on one jianpu line; every beat has the same width. */
+  beatsPerLine: number;
   /** Practice mode: the score waits for the right note. */
   practice: boolean;
   language: Language;
@@ -52,6 +57,7 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     scoreView: "off",
     scoreId: DEFAULT_SCORE_ID,
     scoreKeyHints: true,
+    beatsPerLine: 16,
     practice: false,
     language,
     bindings: { ...DEFAULT_BINDINGS },
@@ -128,6 +134,9 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     scoreView: SCORE_VIEWS.includes(r.scoreView as ScoreView) ? (r.scoreView as ScoreView) : defaults.scoreView,
     scoreId: typeof r.scoreId === "string" && r.scoreId ? r.scoreId : defaults.scoreId,
     scoreKeyHints: typeof r.scoreKeyHints === "boolean" ? r.scoreKeyHints : defaults.scoreKeyHints,
+    beatsPerLine: (BEATS_PER_LINE as readonly unknown[]).includes(r.beatsPerLine)
+      ? (r.beatsPerLine as number)
+      : defaults.beatsPerLine,
     practice: typeof r.practice === "boolean" ? r.practice : defaults.practice,
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,

@@ -184,7 +184,7 @@ export function KeyboardView() {
               <GlassEffects layout={layout} />
             )}
             <div className="glass-frost" aria-hidden="true" />
-            {scoreView === "jianpu" && !win.compact && <ScoreSheet whiteCount={layout.whiteCount} />}
+            {scoreView === "jianpu" && !win.compact && <ScoreSheet />}
           </div>
         </div>
         <div className="glass-rail" aria-hidden="true" />
@@ -194,7 +194,7 @@ export function KeyboardView() {
       {host &&
         createPortal(
           <div className="stage-overlay" ref={setOverlay}>
-            {scoreView === "jianpu" && win.compact && <ScoreSheet whiteCount={layout.whiteCount} compact />}
+            {scoreView === "jianpu" && win.compact && <ScoreSheet compact />}
           </div>,
           host,
         )}

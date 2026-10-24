@@ -1294,9 +1294,8 @@ kbd {
  * pane (cqh/cqw), so it fits any glass height without overflowing.
  */
 .sheet {
-  /* One note per slot; a slot is one white key wide (set from JS). */
-  --j-slot: 36px;
-  --j-size: clamp(11px, calc(var(--j-slot) * 0.5), 22px);
+  /* Digit size; set from JS from the beat width (spec §11.2). */
+  --j-size: 18px;
   --j-ink: rgba(238, 244, 255, 0.94);
   --j-ink-dim: rgba(200, 212, 232, 0.6);
   position: absolute;
@@ -1416,20 +1415,18 @@ kbd {
   margin-top: 0.8em;
 }
 
+/*
+ * A bar is a fixed number of beats wide (width, padding and margin are set
+ * from JS); its notes sit at their time, and its bar line is the right border,
+ * in the middle of the gap before the next bar.
+ */
 .j-bar {
-  flex-basis: 0;
+  flex: none;
   display: flex;
-  justify-content: space-around;
   align-items: flex-start;
-  /* Half a slot either side: with the bar line, one slot per bar. */
-  padding: 0 calc(var(--j-slot) * 0.5);
   border-right: 1px solid rgba(238, 244, 255, 0.45);
   /* The bar line spans the digits, not the key hints below them. */
   border-image: linear-gradient(180deg, transparent 0.35em, rgba(238, 244, 255, 0.45) 0.35em, rgba(238, 244, 255, 0.45) 2.3em, transparent 2.3em) 1;
-}
-
-.j-spacer {
-  flex-basis: 0;
 }
 
 /* Closing double bar: thin + thick. */
@@ -1439,20 +1436,21 @@ kbd {
   background:
     linear-gradient(var(--j-ink), var(--j-ink)) right 0 top 0.35em / 0.14em 1.95em no-repeat,
     linear-gradient(rgba(238, 244, 255, 0.6), rgba(238, 244, 255, 0.6)) right 0.3em top 0.35em / 1px 1.95em no-repeat;
-  padding-right: calc(var(--j-slot) * 0.5 + 0.4em);
 }
 
 /* Notes within one beat sit flush so their underlines join. */
 .j-beam {
+  flex: none;
   display: inline-flex;
 }
 
+/* Each note's box is its share of the beat (width set from JS). */
 .j-glyph {
   position: relative;
+  flex: none;
   display: inline-flex;
   flex-direction: column;
   align-items: stretch;
-  width: var(--j-slot);
 }
 
 .j-high,
@@ -1718,7 +1716,6 @@ kbd {
 
 /* The paper: the same jianpu as on the glass, on a darker, flatter sheet. */
 .editor-sheet {
-  --j-slot: 36px;
   --j-ink: rgba(238, 244, 255, 0.94);
   --j-ink-dim: rgba(200, 212, 232, 0.6);
   flex: 1;
@@ -1730,7 +1727,7 @@ kbd {
   background: rgba(8, 10, 14, 0.55);
   box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.5);
   color: var(--j-ink);
-  font-size: calc(var(--j-slot) * 0.5);
+  font-size: var(--j-size, 18px);
   font-variant-numeric: tabular-nums;
   cursor: text;
   scrollbar-width: thin;
@@ -2181,8 +2178,9 @@ kbd {
 }
 
 
-/* No computer keyboard and no editing on phones. */
+/* No computer keyboard and no editing on phones; phones pick their own beats per line. */
 .app[data-compact] .latch--key-hints,
+.app[data-compact] .beats-select,
 .app[data-compact] .score-edit-btn {
   display: none;
 }
@@ -2237,7 +2235,6 @@ kbd {
  * (the panel shows the song); restart, pages and hide sit at the right.
  */
 .sheet--compact {
-  --j-size: clamp(11px, calc(var(--j-slot) * 0.5), 17px);
   top: 50%;
   bottom: auto;
   left: 0;
@@ -2372,6 +2369,10 @@ kbd {
 
 .score-select {
   min-width: 190px;
+}
+
+.beats-select {
+  min-width: 132px;
 }
 
 .field .select {
