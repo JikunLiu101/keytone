@@ -6,11 +6,17 @@
  * Duration and pitch tweaks (`-`, `/`, `.`, ↑, ↓) apply to the event just
  * before the cursor, i.e. the note you just typed.
  */
-import { inRange, pitchMidi, type Pitch, type Score, type ScoreEvent } from "./score";
+import { inRange, parseScore, pitchMidi, type ParseError, type Pitch, type Score, type ScoreEvent } from "./score";
 
 export interface EditorState {
   score: Score;
   cursor: number;
+  /**
+   * Where a selection started; the selection is the events between `anchor`
+   * and `cursor`. Absent or null: no selection. A note and its `-`s are one
+   * event, so a selection always covers whole notes (spec §11.4).
+   */
+  anchor?: number | null;
 }
 
 export type EditorAction =
@@ -27,6 +33,10 @@ export type EditorAction =
   | { type: "home" }
   | { type: "end" }
   | { type: "moveTo"; cursor: number }
+  /** Move the cursor and keep (or start) a selection from where it was. */
+  | { type: "select"; cursor: number }
+  /** Insert events at the cursor, replacing the selection (paste). */
+  | { type: "insert"; events: ScoreEvent[] }
   | { type: "replace"; score: Score };
 
 export interface EditResult {
@@ -38,7 +48,40 @@ export interface EditResult {
 }
 
 function withEvents(state: EditorState, events: ScoreEvent[], cursor: number): EditorState {
-  return { score: { ...state.score, events }, cursor: Math.max(0, Math.min(events.length, cursor)) };
+  return { score: { ...state.score, events }, cursor: Math.max(0, Math.min(events.length, cursor)), anchor: null };
+}
+
+/** The selected range [start, end), or null when nothing is selected. */
+export function selectionRange(state: EditorState): [number, number] | null {
+  const { anchor, cursor } = state;
+  if (anchor === undefined || anchor === null || anchor === cursor) return null;
+  return [Math.min(anchor, cursor), Math.max(anchor, cursor)];
+}
+
+/** The selected events (empty when nothing is selected). */
+export function selectedEvents(state: EditorState): ScoreEvent[] {
+  const range = selectionRange(state);
+  return range ? state.score.events.slice(range[0], range[1]) : [];
+}
+
+/** Remove the selection, leaving the cursor where it was. */
+function deleteSelection(state: EditorState): EditorState {
+  const range = selectionRange(state);
+  if (!range) return state.anchor === undefined || state.anchor === null ? state : { ...state, anchor: null };
+  const events = state.score.events.slice();
+  events.splice(range[0], range[1] - range[0]);
+  return withEvents(state, events, range[0]);
+}
+
+/**
+ * Read pasted melody text. A whole score (with a header and `---`) gives its
+ * notes only. Range is not checked here: degrees are read in the target
+ * score's key when inserted.
+ */
+export function pasteEvents(text: string): { events: ScoreEvent[]; errors: ParseError[] } {
+  const whole = text.split(/\r?\n/).some((l) => l.trim() === "---");
+  const { score, errors } = parseScore(whole ? text : `---\n${text}`);
+  return { events: score.events, errors: errors.filter((e) => e.code !== "outOfRange") };
 }
 
 /** Apply `change` to the event before the cursor, if there is one. */
@@ -71,10 +114,26 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
       const midi = pitchMidi(pitch, state.score.key);
       if (!inRange(midi)) return { state, rejected: "range" };
       const event: ScoreEvent = { kind: "note", pitches: [pitch], halvings: 0, dotted: false, extensions: 0 };
-      return { state: insert(state, event), audition: [midi] };
+      return { state: insert(deleteSelection(state), event), audition: [midi] };
     }
     case "rest":
-      return { state: insert(state, { kind: "rest", pitches: [], halvings: 0, dotted: false, extensions: 0 }) };
+      return { state: insert(deleteSelection(state), { kind: "rest", pitches: [], halvings: 0, dotted: false, extensions: 0 }) };
+    case "insert": {
+      const key = state.score.key;
+      if (action.events.some((e) => e.pitches.some((p) => !inRange(pitchMidi(p, key))))) return { state, rejected: "range" };
+      const base = deleteSelection(state);
+      const next = base.score.events.slice();
+      next.splice(base.cursor, 0, ...action.events);
+      return { state: withEvents(base, next, base.cursor + action.events.length) };
+    }
+    case "select":
+      return {
+        state: {
+          ...state,
+          cursor: Math.max(0, Math.min(events.length, action.cursor)),
+          anchor: state.anchor ?? state.cursor,
+        },
+      };
     case "extend":
       return changePrevious(state, (e) => ({ ...e, extensions: e.extensions + 1 }));
     case "halve":
@@ -95,6 +154,7 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
       return { ...result, audition: midi };
     }
     case "backspace": {
+      if (selectionRange(state)) return { state: deleteSelection(state) };
       const target = events[state.cursor - 1];
       if (!target) return { state };
       // A held note shortens first; then the note itself goes.
@@ -104,15 +164,21 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
       return { state: withEvents(state, next, state.cursor - 1) };
     }
     case "delete": {
+      if (selectionRange(state)) return { state: deleteSelection(state) };
       if (state.cursor >= events.length) return { state };
       const next = events.slice();
       next.splice(state.cursor, 1);
       return { state: withEvents(state, next, state.cursor) };
     }
-    case "left":
-      return { state: withEvents(state, events, state.cursor - 1) };
-    case "right":
-      return { state: withEvents(state, events, state.cursor + 1) };
+    case "left": {
+      // A plain arrow collapses a selection to its start (or end), like a text box.
+      const range = selectionRange(state);
+      return { state: withEvents(state, events, range ? range[0] : state.cursor - 1) };
+    }
+    case "right": {
+      const range = selectionRange(state);
+      return { state: withEvents(state, events, range ? range[1] : state.cursor + 1) };
+    }
     case "home":
       return { state: withEvents(state, events, 0) };
     case "end":
@@ -120,7 +186,7 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
     case "moveTo":
       return { state: withEvents(state, events, action.cursor) };
     case "replace":
-      return { state: { score: action.score, cursor: Math.min(state.cursor, action.score.events.length) } };
+      return { state: { score: action.score, cursor: Math.min(state.cursor, action.score.events.length), anchor: null } };
   }
 }
 

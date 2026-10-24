@@ -291,11 +291,20 @@ function writePitch(p: Pitch): string {
   return `${acc}${p.degree}${marks}`;
 }
 
-function writeEvent(e: ScoreEvent): string {
+/** An event as written, without the `-`s that hold it: `5./`, `0//`, `[1 3]`. */
+export function writeEventHead(e: ScoreEvent): string {
   const head =
     e.kind === "rest" ? "0" : e.kind === "chord" ? `[${e.pitches.map(writePitch).join(" ")}]` : writePitch(e.pitches[0]);
-  const duration = (e.dotted ? "." : "") + "/".repeat(e.halvings);
-  return head + duration + " -".repeat(e.extensions);
+  return head + (e.dotted ? "." : "") + "/".repeat(e.halvings);
+}
+
+function writeEvent(e: ScoreEvent): string {
+  return writeEventHead(e) + " -".repeat(e.extensions);
+}
+
+/** Events as melody text without bar lines, e.g. for copying a selection. */
+export function serializeEvents(events: ScoreEvent[]): string {
+  return events.map(writeEvent).join(" ");
 }
 
 /** Write a score as text, one line per `barsPerLine` bars. */

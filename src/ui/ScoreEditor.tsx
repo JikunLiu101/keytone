@@ -1,11 +1,20 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { engine, hub, settings } from "../app/services";
 import { OCTAVE_ACTION_SHIFT, actionForCode, codeLabel } from "../core/keymap";
 import { MAX_OCTAVE_SHIFT } from "../core/notes";
 import { isTyping } from "../input/keyboard-input";
 import { useSettings, useT } from "../i18n/useT";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
-import { edit, editorActionForCode, type EditorAction, type EditorState } from "../score/editor";
+import {
+  edit,
+  editorActionForCode,
+  pasteEvents,
+  selectedEvents,
+  selectionRange,
+  type EditorAction,
+  type EditorState,
+} from "../score/editor";
+import { createHistory } from "../score/history";
 import { layoutLines, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
 import {
   addScore,
@@ -16,6 +25,7 @@ import {
   untitled,
   updateScoreData,
 } from "../score/library";
+import { buildLyrics } from "../score/lyrics";
 import {
   KEY_NAMES,
   TEMPO_MAX,
@@ -24,6 +34,7 @@ import {
   barBeats,
   emptyScore,
   parseScore,
+  serializeEvents,
   serializeScore,
   type KeyName,
   type Score,
@@ -33,6 +44,7 @@ import { CloseIcon } from "./icons";
 import { Select } from "./Select";
 import { showToast } from "./Toast";
 import { JianpuLines, keyLabel } from "./JianpuView";
+import { MelodyText } from "./MelodyText";
 import { useCurrentScore, useMeasureSheet } from "./ScoreSheet";
 
 /** How long an auditioned note sounds. */
@@ -52,10 +64,43 @@ function safeFilename(title: string): string {
   return (title.replace(/[\\/:*?"<>|]+/g, " ").trim() || "score") + ".txt";
 }
 
+/** Typing keeps adding to one undo step; deleting is its own step. */
+function historyGroup(action: EditorAction): string | undefined {
+  switch (action.type) {
+    case "note":
+    case "rest":
+    case "extend":
+    case "halve":
+    case "dot":
+    case "accidental":
+      return "type";
+    case "backspace":
+    case "delete":
+      return "delete";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * The cursor position for a click on a note's token or glyph: before it on
+ * its left half, after it on its right half. A `-` belongs to its note, so a
+ * click on one puts the cursor after the note (spec §11.4).
+ */
+function pickCursor(target: EventTarget | null, clientX: number): number | null {
+  const el = target instanceof Element ? target.closest<HTMLElement>("[data-event]") : null;
+  if (!el) return null;
+  const event = Number(el.dataset.event);
+  if (el.dataset.dash !== undefined) return event + 1;
+  const box = el.getBoundingClientRect();
+  return clientX < box.left + box.width / 2 ? event : event + 1;
+}
+
 /**
  * Full-width score editor over the glass and control panel. The keys stay
  * visible below it (and playable with the mouse), but typing goes to the
- * score: digits enter notes, held octave keys add octave dots.
+ * score: digits enter notes, held octave keys add octave dots. The sheet sits
+ * on the left; the melody as text on the right (spec §11.4).
  */
 export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -64,7 +109,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const readOnly = resolved.builtin;
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [state, setStateRaw] = useState<EditorState>({ score: resolved.score, cursor: resolved.score.events.length });
+  const melodyRef = useRef<HTMLDivElement>(null);
+  const [state, setStateRaw] = useState<EditorState>({ score: resolved.score, cursor: resolved.score.events.length, anchor: null });
   // Edits read the latest state from here, so fast typing and key repeat
   // never work from a copy React hasn't re-rendered yet.
   const stateRef = useRef(state);
@@ -72,14 +118,15 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     stateRef.current = next;
     setStateRaw(next);
   };
-  const [draft, setDraft] = useState<string | null>(null);
   const held = useRef(new Set<string>());
   const fileRef = useRef<HTMLInputElement>(null);
+  // One undo history for everything in the editor; another score starts a new one.
+  const history = useMemo(() => createHistory<EditorState>(), []);
 
   // Switching to another score loads it.
   useEffect(() => {
-    setState({ score: resolved.score, cursor: resolved.score.events.length });
-    setDraft(null);
+    setState({ score: resolved.score, cursor: resolved.score.events.length, anchor: null });
+    history.clear();
     // Only when the score itself changes, not on our own saves.
   }, [resolved.id]);
 
@@ -101,13 +148,30 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   // Every change is saved straight away; the time shows that it was.
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   useEffect(() => setSavedAt(null), [resolved.id]);
-  const commit = (next: EditorState) => {
-    setState(next);
-    if (!readOnly) {
-      updateScoreData(resolved.id, next.score);
-      setSavedAt(new Date());
-    }
+  const persist = (score: Score) => {
+    updateScoreData(resolved.id, score);
+    setSavedAt(new Date());
   };
+  /** Show `next`; when the score changed, remember the old state for undo and save. */
+  const commit = (next: EditorState, group?: string) => {
+    const current = stateRef.current;
+    if (next.score !== current.score && !readOnly) {
+      history.push(current, group);
+      persist(next.score);
+    }
+    setState(next);
+  };
+
+  const undo = (redo = false) => {
+    if (readOnly) return;
+    const current = stateRef.current;
+    const back = redo ? history.redo(current) : history.undo(current);
+    if (!back) return;
+    setState(back);
+    persist(back.score);
+  };
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
 
   /** Save button and Ctrl/⌘+S: writes the score again and confirms it. */
   const save = () => {
@@ -115,8 +179,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       showToast(t("editor.cantSaveBuiltin"), "warn");
       return;
     }
-    updateScoreData(resolved.id, stateRef.current.score);
-    setSavedAt(new Date());
+    persist(stateRef.current.score);
     showToast(t("editor.saved").replace("{title}", stateRef.current.score.title || untitled(language)));
   };
   const saveRef = useRef(save);
@@ -127,7 +190,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     const current = stateRef.current;
     const result = edit(current, action);
     if (result.rejected) flash(t("editor.outOfRange"));
-    if (result.state !== current) commit(result.state);
+    if (result.state !== current) commit(result.state, historyGroup(action));
     if (result.audition) {
       engine.unlock();
       for (const midi of result.audition) hub.press("editor", midi, settings.get().velocity);
@@ -149,17 +212,40 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       return Math.max(-MAX_OCTAVE_SHIFT, Math.min(MAX_OCTAVE_SHIFT, shift));
     };
     const onDown = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
       // Ctrl/⌘+S saves (even from a text field) instead of saving the web page.
-      if ((e.ctrlKey || e.metaKey) && e.code === "KeyS") {
+      if (mod && e.code === "KeyS") {
         e.preventDefault();
         saveRef.current();
+        return;
+      }
+      // One undo history for the melody, lyrics and fields, even from a text field.
+      if (mod && !e.isComposing && (e.code === "KeyZ" || e.code === "KeyY")) {
+        e.preventDefault();
+        undoRef.current(e.code === "KeyY" || e.shiftKey);
         return;
       }
       if (e.key === "Escape") {
         onClose();
         return;
       }
-      if (isTyping(e.target) || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (isTyping(e.target) || e.altKey) return;
+      const { cursor, score } = stateRef.current;
+      if (mod) {
+        if (e.code === "KeyA") {
+          e.preventDefault();
+          applyRef.current({ type: "moveTo", cursor: 0 });
+          applyRef.current({ type: "select", cursor: score.events.length });
+        }
+        return;
+      }
+      // Shift with ← / → / Home / End selects.
+      if (e.shiftKey && (e.code === "ArrowLeft" || e.code === "ArrowRight" || e.code === "Home" || e.code === "End")) {
+        e.preventDefault();
+        const to = { ArrowLeft: cursor - 1, ArrowRight: cursor + 1, Home: 0, End: score.events.length }[e.code];
+        applyRef.current({ type: "select", cursor: to });
+        return;
+      }
       const bound = actionForCode(settings.get().bindings, e.code);
       if (bound && bound !== "sustain") {
         held.current.add(e.code);
@@ -183,31 +269,91 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     };
   }, [onClose]);
 
+  // Copy, cut and paste notes (text fields keep their own).
+  useEffect(() => {
+    const onCopy = (e: ClipboardEvent) => {
+      if (isTyping(e.target)) return;
+      const events = selectedEvents(stateRef.current);
+      if (!events.length || !e.clipboardData) return;
+      e.clipboardData.setData("text/plain", serializeEvents(events));
+      e.preventDefault();
+    };
+    const onCut = (e: ClipboardEvent) => {
+      if (isTyping(e.target) || !selectedEvents(stateRef.current).length) return;
+      onCopy(e);
+      applyRef.current({ type: "delete" });
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTyping(e.target)) return;
+      const text = e.clipboardData?.getData("text/plain");
+      if (!text) return;
+      e.preventDefault();
+      const { events, errors } = pasteEvents(text);
+      if (!events.length) {
+        flash(t("editor.pasteNothing"));
+        return;
+      }
+      applyRef.current({ type: "insert", events });
+      const [first] = errors;
+      if (first) flash(`${t("editor.pasteSkipped")} ${t(`parse.${first.code}`).replace("{x}", first.detail ?? "")}`);
+    };
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+    };
+  }, [t]);
+
+  // Click to place the cursor, Shift+click or drag to select: on the sheet and in the melody text.
+  const dragging = useRef(false);
+  useEffect(() => {
+    const stop = () => (dragging.current = false);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+    return () => {
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
+    };
+  }, []);
+  const onPanePointerDown = (e: ReactPointerEvent<HTMLElement>, focus?: HTMLElement | null) => {
+    if (readOnly || e.button !== 0) return;
+    const at = pickCursor(e.target, e.clientX) ?? (e.target === e.currentTarget ? stateRef.current.score.events.length : null);
+    if (at === null) return;
+    e.preventDefault();
+    (focus ?? rootRef.current)?.focus({ preventScroll: true });
+    apply({ type: e.shiftKey ? "select" : "moveTo", cursor: at });
+    dragging.current = true;
+  };
+  const onPanePointerMove = (e: ReactPointerEvent<HTMLElement>) => {
+    if (!dragging.current || !(e.buttons & 1)) return;
+    const at = pickCursor(e.target, e.clientX);
+    if (at !== null && at !== stateRef.current.cursor) apply({ type: "select", cursor: at });
+  };
+
   // Layout: all lines, scrolling, laid out like the sheet on the glass (spec §11.2).
   const [box, setBox] = useState<SheetBox>({ width: 0, linesPerPage: 1 });
   const metrics = useMemo(
     () => sheetMetrics(Math.max(0, box.width - 2), beatsPerLine, barBeats(state.score.time)),
     [box.width, beatsPerLine, state.score.time],
   );
-  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font]);
+  // The editor always shows the lyrics, whatever the switch on the panel says.
+  const lyrics = useMemo(() => buildLyrics(state.score), [state.score]);
+  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font, !!lyrics]);
   const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [state.score, beatsPerLine]);
+  const selection = selectionRange(state);
 
-  // Keep the cursor in view.
+  // Keep the cursor in view on both sides.
   useEffect(() => {
     bodyRef.current?.querySelector(".j-caret")?.closest(".j-line")?.scrollIntoView({ block: "nearest" });
+    melodyRef.current?.querySelector(".mt-caret")?.scrollIntoView({ block: "nearest" });
   }, [state.cursor, lines]);
 
   const setMeta = (patch: Partial<Score>) => {
     const current = stateRef.current;
-    commit({ ...current, score: { ...current.score, ...patch } });
-  };
-
-  const text = draft ?? serializeScore(state.score);
-  const textErrors = useMemo(() => (draft === null ? [] : parseScore(draft).errors), [draft]);
-  const onText = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    setDraft(e.target.value);
-    const next = parseScore(e.target.value).score;
-    commit({ score: next, cursor: Math.min(stateRef.current.cursor, next.events.length) });
+    commit({ ...current, score: { ...current.score, ...patch } }, `meta:${Object.keys(patch).join()}`);
   };
 
   const select = (id: string) => settings.set({ scoreId: id, scoreView: settings.get().scoreView === "off" ? "jianpu" : settings.get().scoreView });
@@ -379,30 +525,52 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         </label>
       </div>
 
-      <div
-        className="editor-sheet sheet-like"
-        data-hints={scoreKeyHints || undefined}
-        style={{ ["--j-size" as string]: `${metrics.font}px` }}
-        ref={bodyRef}
-        onPointerDown={(e) => {
-          // A click on empty paper puts the cursor at the end.
-          if (e.target === e.currentTarget) apply({ type: "end" });
-        }}
-      >
-        <JianpuLines
-          lines={lines}
-          metrics={metrics}
-          endsScore
-          cursor={readOnly ? undefined : state.cursor}
-          eventCount={state.score.events.length}
-          onPick={readOnly ? undefined : (cursor) => apply({ type: "moveTo", cursor })}
-        />
-        {state.score.events.length === 0 && !readOnly && (
-          <p className="editor-empty">
-            <i className="j-caret j-caret--inline" />
-            {t("editor.emptyHint")}
-          </p>
-        )}
+      <div className="editor-main">
+        <div
+          className="editor-sheet sheet-like"
+          data-hints={scoreKeyHints || undefined}
+          style={{ ["--j-size" as string]: `${metrics.font}px` }}
+          ref={bodyRef}
+          onPointerDown={(e) => onPanePointerDown(e)}
+          onPointerMove={onPanePointerMove}
+        >
+          <JianpuLines
+            lines={lines}
+            metrics={metrics}
+            endsScore
+            cursor={readOnly ? undefined : state.cursor}
+            eventCount={state.score.events.length}
+            selection={selection}
+            lyrics={lyrics}
+          />
+          {state.score.events.length === 0 && !readOnly && (
+            <p className="editor-empty">
+              <i className="j-caret j-caret--inline" />
+              {t("editor.emptyHint")}
+            </p>
+          )}
+        </div>
+
+        <div className="editor-side">
+          <section className="editor-pane editor-pane--melody">
+            <h3 className="control-label">{t("editor.melody")}</h3>
+            <div
+              className="editor-text-box"
+              ref={melodyRef}
+              onPointerDown={(e) => onPanePointerDown(e, melodyRef.current?.querySelector<HTMLElement>(".melody-text"))}
+              onPointerMove={onPanePointerMove}
+            >
+              <MelodyText
+                score={state.score}
+                lines={lines}
+                cursor={state.cursor}
+                selection={selection}
+                label={t("editor.melody")}
+                readOnly={readOnly}
+              />
+            </div>
+          </section>
+        </div>
       </div>
 
       <footer className="editor-foot">
@@ -435,29 +603,19 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
           <span>
             <kbd>⌫</kbd> {t("editor.keyBackspace")}
           </span>
+          <span>
+            <kbd>Shift</kbd>+<kbd>←</kbd>
+            <kbd>→</kbd> {t("editor.keySelect")}
+          </span>
+          <span>
+            <kbd>Ctrl/⌘</kbd>+<kbd>C</kbd>
+            <kbd>X</kbd>
+            <kbd>V</kbd> {t("editor.keyClipboard")}
+          </span>
+          <span>
+            <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd> {t("editor.keyUndo")}
+          </span>
         </p>
-        <details className="editor-text">
-          <summary>{t("editor.textView")}</summary>
-          <textarea
-            value={readOnly ? serializeScore({ ...state.score, title: resolved.title }) : text}
-            readOnly={readOnly}
-            spellCheck={false}
-            rows={6}
-            onFocus={() => !readOnly && setDraft(serializeScore(state.score))}
-            onBlur={() => setDraft(null)}
-            onChange={onText}
-          />
-          {textErrors.length > 0 && (
-            <ul className="editor-errors">
-              {textErrors.slice(0, 4).map((err, i) => (
-                <li key={i}>
-                  {err.line ? t("editor.line").replace("{n}", String(err.line)) : ""}
-                  {t(`parse.${err.code}`).replace("{x}", err.detail ?? "")}
-                </li>
-              ))}
-            </ul>
-          )}
-        </details>
       </footer>
     </div>
   );
