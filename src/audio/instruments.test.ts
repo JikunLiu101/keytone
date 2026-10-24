@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, stepInstrument } from "./instruments";
+import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, listMove, stepInstrument } from "./instruments";
 
 describe("instruments", () => {
   it("has 21 instruments with unique ids, keeping every id from before version 5", () => {
@@ -49,5 +49,23 @@ describe("familyPlace", () => {
     expect(familyPlace("violin")).toEqual({ family: "strings", index: 1, count: 4 });
     expect(familyPlace("harmonica")).toEqual({ family: "winds", index: 3, count: 3 });
     expect(familyPlace("grand-piano")).toEqual({ family: "pianos", index: 1, count: 4 });
+  });
+});
+
+describe("listMove", () => {
+  // Columns of 4, 3, 4 items.
+  const columns = [4, 3, 4];
+
+  it("moves up and down within a column, stopping at its ends", () => {
+    expect(listMove(columns, { col: 0, row: 1 }, "ArrowDown")).toEqual({ col: 0, row: 2 });
+    expect(listMove(columns, { col: 0, row: 3 }, "ArrowDown")).toEqual({ col: 0, row: 3 });
+    expect(listMove(columns, { col: 0, row: 0 }, "ArrowUp")).toEqual({ col: 0, row: 0 });
+  });
+
+  it("moves left and right between columns, keeping the row where it can", () => {
+    expect(listMove(columns, { col: 0, row: 1 }, "ArrowRight")).toEqual({ col: 1, row: 1 });
+    expect(listMove(columns, { col: 0, row: 3 }, "ArrowRight")).toEqual({ col: 1, row: 2 });
+    expect(listMove(columns, { col: 2, row: 0 }, "ArrowRight")).toEqual({ col: 2, row: 0 });
+    expect(listMove(columns, { col: 0, row: 2 }, "ArrowLeft")).toEqual({ col: 0, row: 2 });
   });
 });
