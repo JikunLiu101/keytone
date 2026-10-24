@@ -1808,10 +1808,6 @@ kbd {
   margin-left: 2px;
 }
 
-.editor-message {
-  color: var(--warm);
-}
-
 .editor-text summary {
   width: fit-content;
   font-size: 12px;
@@ -2538,13 +2534,28 @@ kbd {
   color: #fff;
 }
 
+/*
+ * Toasts sit at the top of the stage, just below the control panel, where the
+ * player is looking (over the top of the glass), not at the bottom edge.
+ */
 .toast-host {
-  position: fixed;
+  position: absolute;
+  top: 12px;
   left: 50%;
-  bottom: 28px;
   z-index: 120;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+/* Phones: below the floating panel bar. */
+.app[data-compact] .toast-host {
+  top: 54px;
+}
+
+/* With the editor open, in the empty middle of its header row. */
+.app:has(> .editor) .toast-host {
+  position: fixed;
+  top: 12px;
 }
 
 .toast {
@@ -2572,11 +2583,19 @@ kbd {
   stroke-linejoin: round;
 }
 
-/* Rise in, hold, fade out: one animation spanning the toast's 2 s. */
+.toast--warn {
+  border-color: rgba(255, 179, 107, 0.45);
+}
+
+.toast--warn svg {
+  stroke: var(--warm);
+}
+
+/* Drop in, hold, fade out: one animation spanning the toast's 2 s. */
 @keyframes toast-in {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(-8px);
   }
   10%,
   80% {

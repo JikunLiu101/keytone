@@ -290,6 +290,7 @@ export function App() {
           {" · "}
           {t("hint.mouse")}
         </p>
+        <ToastHost />
       </main>
 
       <div className="rotate-prompt" role="alert">
@@ -306,7 +307,6 @@ export function App() {
       {dialog === "credits" && <CreditsDialog onClose={() => setDialog(null)} />}
       {dialog === "editor" && <ScoreEditor onClose={closeDialog} />}
       <HoldRing />
-      <ToastHost />
     </div>
   );
 }

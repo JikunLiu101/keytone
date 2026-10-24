@@ -72,7 +72,6 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     stateRef.current = next;
     setStateRaw(next);
   };
-  const [message, setMessage] = useState<string | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const held = useRef(new Set<string>());
   const fileRef = useRef<HTMLInputElement>(null);
@@ -97,10 +96,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
 
   useEffect(() => rootRef.current?.focus(), []);
 
-  const flash = (text: string) => {
-    setMessage(text);
-    window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 2400);
-  };
+  const flash = (text: string) => showToast(text, "warn");
 
   // Every change is saved straight away; the time shows that it was.
   const [savedAt, setSavedAt] = useState<Date | null>(null);
@@ -116,7 +112,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   /** Save button and Ctrl/⌘+S: writes the score again and confirms it. */
   const save = () => {
     if (readOnly) {
-      showToast(t("editor.cantSaveBuiltin"));
+      showToast(t("editor.cantSaveBuiltin"), "warn");
       return;
     }
     updateScoreData(resolved.id, stateRef.current.score);
@@ -421,41 +417,35 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       </div>
 
       <footer className="editor-foot">
-        <p className="editor-keys" aria-live="polite">
-          {message ? (
-            <span className="editor-message">{message}</span>
-          ) : (
-            <>
-              <span>
-                <kbd>1</kbd>–<kbd>7</kbd> {t("editor.keyNotes")}
-              </span>
-              <span>
-                <kbd>0</kbd> {t("editor.keyRest")}
-              </span>
-              <span>
-                <kbd>-</kbd> {t("editor.keyExtend")}
-              </span>
-              <span>
-                <kbd>/</kbd> {t("editor.keyHalve")}
-              </span>
-              <span>
-                <kbd>.</kbd> {t("editor.keyDot")}
-              </span>
-              <span>
-                <kbd>↑</kbd>
-                <kbd>↓</kbd> {t("editor.keySharpFlat")}
-              </span>
-              {hold(bindings.octaveDown1, t("editor.keyLow"))}
-              {hold(bindings.octaveUp1, t("editor.keyHigh"))}
-              <span>
-                <kbd>←</kbd>
-                <kbd>→</kbd> {t("editor.keyMove")}
-              </span>
-              <span>
-                <kbd>⌫</kbd> {t("editor.keyBackspace")}
-              </span>
-            </>
-          )}
+        <p className="editor-keys">
+          <span>
+            <kbd>1</kbd>–<kbd>7</kbd> {t("editor.keyNotes")}
+          </span>
+          <span>
+            <kbd>0</kbd> {t("editor.keyRest")}
+          </span>
+          <span>
+            <kbd>-</kbd> {t("editor.keyExtend")}
+          </span>
+          <span>
+            <kbd>/</kbd> {t("editor.keyHalve")}
+          </span>
+          <span>
+            <kbd>.</kbd> {t("editor.keyDot")}
+          </span>
+          <span>
+            <kbd>↑</kbd>
+            <kbd>↓</kbd> {t("editor.keySharpFlat")}
+          </span>
+          {hold(bindings.octaveDown1, t("editor.keyLow"))}
+          {hold(bindings.octaveUp1, t("editor.keyHigh"))}
+          <span>
+            <kbd>←</kbd>
+            <kbd>→</kbd> {t("editor.keyMove")}
+          </span>
+          <span>
+            <kbd>⌫</kbd> {t("editor.keyBackspace")}
+          </span>
         </p>
         <details className="editor-text">
           <summary>{t("editor.textView")}</summary>
