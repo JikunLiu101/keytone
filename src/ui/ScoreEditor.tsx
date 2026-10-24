@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { engine, hub, settings } from "../app/services";
+import { createAuditioner } from "../core/audition";
 import { OCTAVE_ACTION_SHIFT, actionForCode, codeLabel } from "../core/keymap";
 import { MAX_OCTAVE_SHIFT } from "../core/notes";
 import { isTyping } from "../input/keyboard-input";
@@ -36,8 +37,10 @@ import {
   barBeats,
   emptyScore,
   parseScore,
+  readTempo,
   serializeEvents,
   serializeScore,
+  settleTempo,
   type KeyName,
   type Score,
   type TimeSignature,
@@ -191,6 +194,9 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const saveRef = useRef(save);
   saveRef.current = save;
 
+  // Each entered note sounds, even the same note twice in a row.
+  const audition = useMemo(() => createAuditioner(hub, () => settings.get().velocity, AUDITION_MS), []);
+
   /** Apply an edit; returns what happened, or null when the score is read-only. */
   const apply = (action: EditorAction): EditResult | null => {
     if (readOnly) return null;
@@ -200,8 +206,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     if (result.state !== current) commit(result.state, historyGroup(action));
     if (result.audition) {
       engine.unlock();
-      for (const midi of result.audition) hub.press("editor", midi, settings.get().velocity);
-      window.setTimeout(() => result.audition?.forEach((m) => hub.release("editor", m)), AUDITION_MS);
+      audition(result.audition);
     }
     return result;
   };
@@ -385,7 +390,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   // The editor always shows the lyrics, whatever the switch on the panel says.
   const lyrics = useMemo(() => buildLyrics(state.score), [state.score]);
   useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font, !!lyrics]);
-  const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [state.score, beatsPerLine]);
+  const { events, time, pickup, key } = state.score;
+  const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [events, time, pickup, key, beatsPerLine]);
   const selection = selectionRange(state);
   // The note the lyric under the text cursor falls on (spec §11.4).
   const highlight: Slot | null = useMemo(() => {
@@ -400,11 +406,19 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   };
   const trackCaret = (e: { currentTarget: HTMLTextAreaElement }) => setLyricCaret(e.currentTarget.selectionStart);
 
-  // Keep the cursor in view on both sides.
+  // Keep the cursor in view on both sides: the melody cursor, or while the
+  // lyrics box has the cursor, the note its lyric falls on.
+  const editingLyrics = lyricCaret !== null;
   useEffect(() => {
-    bodyRef.current?.querySelector(".j-caret")?.closest(".j-line")?.scrollIntoView({ block: "nearest" });
-    melodyRef.current?.querySelector(".mt-caret")?.scrollIntoView({ block: "nearest" });
-  }, [state.cursor, lines]);
+    const sheetTarget = editingLyrics ? ".j-glyph--linked" : ".j-caret";
+    const textTarget = editingLyrics ? ".mt-tok--linked" : ".mt-caret";
+    bodyRef.current?.querySelector(sheetTarget)?.closest(".j-line")?.scrollIntoView({ block: "nearest" });
+    melodyRef.current?.querySelector(textTarget)?.scrollIntoView({ block: "nearest" });
+  }, [state.cursor, lines, editingLyrics, highlight]);
+
+  // The tempo field holds what is typed until it is a tempo; leaving it settles the value.
+  const [tempoDraft, setTempoDraft] = useState<string | null>(null);
+  useEffect(() => setTempoDraft(null), [resolved.id]);
 
   const setMeta = (patch: Partial<Score>) => {
     const current = stateRef.current;
@@ -557,11 +571,20 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
             type="number"
             min={TEMPO_MIN}
             max={TEMPO_MAX}
-            value={state.score.tempo}
+            value={tempoDraft ?? state.score.tempo}
             disabled={readOnly}
             onChange={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n) && n > 0) setMeta({ tempo: Math.round(Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, n))) });
+              setTempoDraft(e.target.value);
+              const tempo = readTempo(e.target.value);
+              if (tempo !== null) setMeta({ tempo });
+            }}
+            onBlur={(e) => {
+              const tempo = settleTempo(e.target.value, stateRef.current.score.tempo);
+              if (tempo !== stateRef.current.score.tempo) setMeta({ tempo });
+              setTempoDraft(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
             }}
           />
         </label>
@@ -593,7 +616,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
             lines={lines}
             metrics={metrics}
             endsScore
-            cursor={readOnly ? undefined : state.cursor}
+            cursor={readOnly || editingLyrics ? undefined : state.cursor}
             eventCount={state.score.events.length}
             selection={selection}
             highlight={highlight}
@@ -624,6 +647,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
                 highlight={highlight}
                 label={t("editor.melody")}
                 readOnly={readOnly}
+                showCaret={!editingLyrics}
               />
             </div>
           </section>

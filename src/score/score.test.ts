@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { barBeats, eventBeats, parseScore, pitchMidi, scoreBeats, serializeScore } from "./score";
+import { barBeats, eventBeats, parseScore, pitchMidi, readTempo, scoreBeats, serializeScore, settleTempo } from "./score";
 
 const body = (notes: string, header = "") => parseScore(`${header}---\n${notes}`);
 
@@ -103,5 +103,23 @@ describe("built-in scores", () => {
       expect(errors).toEqual([]);
       expect((scoreBeats(score) - score.pickup) % barBeats(score.time)).toBe(0);
     }
+  });
+});
+
+describe("tempo field", () => {
+  it("takes a typed tempo only once it is a whole number in range", () => {
+    expect(readTempo("80")).toBe(80);
+    expect(readTempo("8")).toBeNull();
+    expect(readTempo("")).toBeNull();
+    expect(readTempo("300")).toBeNull();
+    expect(readTempo("90.5")).toBeNull();
+  });
+
+  it("settles the field on leaving it: clamped, or back to the old tempo when empty", () => {
+    expect(settleTempo("8", 100)).toBe(30);
+    expect(settleTempo("999", 100)).toBe(240);
+    expect(settleTempo("", 100)).toBe(100);
+    expect(settleTempo("abc", 100)).toBe(100);
+    expect(settleTempo("90.6", 100)).toBe(91);
   });
 });

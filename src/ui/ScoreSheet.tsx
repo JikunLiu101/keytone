@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { hub, scorePage } from "../app/services";
 import { useSettings, useT } from "../i18n/useT";
 import { layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
-import { PRACTICE_START, isComplete, phraseBackTarget, phraseStarts, practicePress, practiceSteps } from "../score/practice";
+import { PRACTICE_START, isComplete, phraseStarts, practicePress, practiceSteps, practiceTarget } from "../score/practice";
 import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
 import { buildLyrics } from "../score/lyrics";
@@ -106,22 +106,14 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
       setMiss(next.misses !== p.misses);
     });
   }, [practice, steps]);
-  // Shortcuts: Backspace (phrase back), held Backspace (restart), ← / → (one note).
+  // Shortcuts: Backspace (phrase back), held Backspace (restart), ← / → (one
+  // note), and Enter to play again once complete.
   const starts = useMemo(() => phraseStarts(score, steps), [score, steps]);
   useEffect(() => {
     if (!practice) return;
     return onScoreCommand((command) => {
       const p = progressRef.current;
-      const to =
-        command === "phraseBack"
-          ? phraseBackTarget(starts, p.step)
-          : command === "restart"
-            ? 0
-            : command === "stepBack"
-              ? p.step - 1
-              : command === "stepForward"
-                ? p.step + 1
-                : null;
+      const to = practiceTarget(command, p.step, starts, isComplete(steps, p));
       if (to === null) return;
       setProgress({ ...p, step: Math.max(0, Math.min(steps.length, to)), pressed: [] });
       setMiss(false);

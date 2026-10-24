@@ -129,7 +129,8 @@ export function App() {
           return;
         case "Enter":
         case "NumpadEnter":
-          if (falling) send("playPause");
+          // Falling notes: play / pause. Jianpu practice: play again once complete.
+          if (falling || (scoreOn && s.practice)) send("playPause");
           return;
         case "ArrowUp":
         case "ArrowDown":

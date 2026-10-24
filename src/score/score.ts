@@ -19,6 +19,23 @@ export type TimeSignature = (typeof TIME_SIGNATURES)[number];
 export const TEMPO_MIN = 30;
 export const TEMPO_MAX = 240;
 
+/**
+ * A tempo typed into the editor's field, taken only once it is a whole number
+ * in range; while the player is still typing ("8" on the way to "80") it is
+ * left alone instead of being forced into range.
+ */
+export function readTempo(text: string): number | null {
+  const n = Number(text.trim());
+  return text.trim() !== "" && Number.isInteger(n) && n >= TEMPO_MIN && n <= TEMPO_MAX ? n : null;
+}
+
+/** The tempo when the field is left: clamped and rounded, or `current` when the field holds no number. */
+export function settleTempo(text: string, current: number): number {
+  const n = Number(text.trim());
+  if (text.trim() === "" || !Number.isFinite(n)) return current;
+  return Math.round(Math.min(TEMPO_MAX, Math.max(TEMPO_MIN, n)));
+}
+
 /** Scale degree → semitones above the tonic (major scale). */
 const DEGREE_SEMITONES = [0, 0, 2, 4, 5, 7, 9, 11];
 
