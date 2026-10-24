@@ -181,6 +181,34 @@ button {
   margin-left: auto;
 }
 
+/* The octave / sustain readouts sit on the top row, just before the buttons. */
+.indicators + .panel-actions {
+  margin-left: 0;
+}
+
+/*
+ * Both languages of a label stacked in one cell, only the current one shown
+ * (Both.tsx), so a control is as wide and tall in English as in Chinese and
+ * nothing moves when the language changes (spec §12.5).
+ */
+.both {
+  display: inline-grid;
+  justify-items: start;
+}
+
+.both > * {
+  grid-area: 1 / 1;
+}
+
+.both-off {
+  visibility: hidden;
+}
+
+.button .both,
+.segment .both {
+  justify-items: center;
+}
+
 .lang-toggle {
   min-width: 48px;
 }
@@ -623,11 +651,15 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   font-weight: 400;
 }
 
-/* Uppercase and tracking mean nothing in Chinese; drop them there. */
+/*
+ * Uppercase and tracking mean nothing in Chinese; drop them there. A label
+ * laid out in both languages (Both.tsx) sets this on its Chinese half only,
+ * so its English half keeps the same width in either language.
+ */
 :lang(zh) .picker-family,
 :lang(zh) .picker-column-name,
-:lang(zh) .control-label,
-:lang(zh) .tagline {
+:lang(zh) :is(.control-label, .tagline):not(:has(.both)),
+:is(.control-label, .tagline) .both > :lang(zh) {
   text-transform: none;
   letter-spacing: 0.04em;
 }
@@ -2691,13 +2723,12 @@ kbd {
   }
 }
 
+/* Song titles can be any length: a fixed width, long ones end in "…". */
 .score-select {
-  min-width: 190px;
+  width: 210px;
 }
 
-.beats-select {
-  min-width: 132px;
-}
+
 
 .field .select {
   min-width: 96px;
