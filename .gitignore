@@ -6,3 +6,9 @@ dist/
 
 # Local UI review snapshots (impeccable)
 .impeccable/
+
+# Local code index (CodeGraph)
+.codegraph/
+
+# Local Claude Code config
+.claude/
