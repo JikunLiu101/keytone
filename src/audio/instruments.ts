@@ -169,11 +169,6 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
 
 export const DEFAULT_INSTRUMENT_ID = "grand-piano";
 
-/** Short label for a pad inside its family group, e.g. "inst.synthLead" -> "short.synthLead". */
-export function shortKey(def: InstrumentDef): MessageKey {
-  return def.nameKey.replace(/^inst\./, "short.") as MessageKey;
-}
-
 export function findInstrument(id: string): InstrumentDef | undefined {
   return INSTRUMENTS.find((i) => i.id === id);
 }
@@ -182,6 +177,30 @@ export function findInstrument(id: string): InstrumentDef | undefined {
 export function stepInstrument(id: string, direction: 1 | -1): InstrumentDef {
   const i = Math.max(0, INSTRUMENTS.findIndex((x) => x.id === id));
   return INSTRUMENTS[(i + direction + INSTRUMENTS.length) % INSTRUMENTS.length];
+}
+
+/**
+ * Arrow-key move in the instrument list, laid out as columns (one per family,
+ * `columns[i]` items long): ↑ / ↓ stay in the column, ← / → change column and
+ * keep the row where that column is long enough. Moves stop at the edges.
+ */
+export function listMove(
+  columns: readonly number[],
+  at: { col: number; row: number },
+  key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight",
+): { col: number; row: number } {
+  const clampRow = (col: number, row: number) => Math.max(0, Math.min(columns[col] - 1, row));
+  switch (key) {
+    case "ArrowUp":
+      return { col: at.col, row: clampRow(at.col, at.row - 1) };
+    case "ArrowDown":
+      return { col: at.col, row: clampRow(at.col, at.row + 1) };
+    case "ArrowLeft":
+    case "ArrowRight": {
+      const col = Math.max(0, Math.min(columns.length - 1, at.col + (key === "ArrowLeft" ? -1 : 1)));
+      return { col, row: clampRow(col, at.row) };
+    }
+  }
 }
 
 /** An instrument's family and its 1-based place in it, e.g. violin → strings, 1 of 4. */

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { engine, hub, keyboard, settings } from "../app/services";
-import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instruments";
+import { findInstrument } from "../audio/instruments";
 import { dynamicMark } from "../core/dynamics";
 import { PALETTE_IDS } from "../view/palettes";
 import { BEATS_PER_LINE, SCORE_VIEWS } from "../app/settings";
@@ -8,6 +8,7 @@ import { listScores, userScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
+import { InstrumentPicker } from "./InstrumentPicker";
 import { Select } from "./Select";
 import { songSwitch } from "../app/commands";
 
@@ -89,43 +90,6 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
         </div>
       </div>
 
-      <div className="families" role="radiogroup" aria-label={t("panel.instrument")}>
-        {FAMILIES.map((family) => (
-          <div key={family.id} className="family" role="group" aria-label={t(family.nameKey)}>
-            <span className="family-name" aria-hidden="true">
-              {t(family.nameKey)}
-            </span>
-            <div className="family-pads">
-              {INSTRUMENTS.filter((inst) => inst.family === family.id).map((inst) => {
-                const active = inst.id === status.currentId;
-                const loading = inst.id === status.loadingId;
-                const failed = inst.id === status.errorId;
-                const state = loading ? "loading" : failed ? "error" : active ? "on" : "off";
-                return (
-                  <button
-                    key={inst.id}
-                    role="radio"
-                    aria-checked={active}
-                    aria-busy={loading || undefined}
-                    aria-label={t(inst.nameKey)}
-                    title={`${t(inst.nameKey)} ([ / ])`}
-                    className={`pad pad--${state}`}
-                    onClick={() => {
-                      engine.unlock();
-                      // Re-selecting a failed instrument retries it; otherwise switch.
-                      if (failed) void engine.setInstrument(inst.id);
-                      settings.set({ instrumentId: inst.id });
-                    }}
-                  >
-                    <span className="led" aria-hidden="true" />
-                    {t(shortKey(inst))}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
       {status.errorId && (
         <div className="panel-error" role="alert">
           <span>{t("status.error").replace("{name}", t(findInstrument(status.errorId)?.nameKey ?? "inst.grandPiano"))}</span>
@@ -136,6 +100,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       )}
 
       <div className="panel-row panel-row--controls">
+        <InstrumentPicker />
         <label className="fader" title={`${t("panel.volume")} (- / =)`}>
           <span className="control-label">{t("panel.volume")}</span>
           <input
