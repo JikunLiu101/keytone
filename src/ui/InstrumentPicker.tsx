@@ -211,7 +211,9 @@ export function InstrumentPicker() {
                       onPointerMove={() => setActive({ col, row })}
                       onClick={() => {
                         pick(inst.id);
-                        close();
+                        // A mouse or touch pick gives the keys back to playing,
+                        // not to the screen (where ↑ / ↓ / Enter would reopen the list).
+                        close(false);
                       }}
                     >
                       <span className="led" aria-hidden="true" />

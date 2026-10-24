@@ -75,7 +75,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== "PageUp" && e.code !== "PageDown") return;
-      if (dialogRef.current || settings.get().scoreView !== "jianpu") return;
+      if (dialogRef.current || isTyping(e.target) || settings.get().scoreView !== "jianpu") return;
       const { page, count } = scorePage.get();
       const next = Math.min(count - 1, Math.max(0, page + (e.code === "PageDown" ? 1 : -1)));
       e.preventDefault();
