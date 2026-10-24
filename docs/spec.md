@@ -73,8 +73,10 @@ At the default octave (no octave key held):
   |---|---|
   | −1 octave | Left Shift |
   | +1 octave | Right Shift |
-  | −2 octaves | not bound |
-  | +2 octaves | not bound |
+  | −2 octaves | `A` |
+  | +2 octaves | `'` |
+
+  `A` and `'` sit above the outer ends of the two Shifts, so the ±2 keys mirror the ±1 keys.
 
 - Offsets from all held octave keys are added together, and the total is clamped to the range −2…+2.
   - Left Shift + Right Shift = 0.
@@ -120,7 +122,7 @@ All instruments come from [smplr](https://github.com/danigb/smplr).
 | 16 | Synth Lead | `Soundfont` FluidR3_GM | CC BY 3.0 |
 | 17 | Synth Pad | `Soundfont` FluidR3_GM | CC BY 3.0 |
 
-- Instruments are switched only by clicking the instrument list. They have no keyboard shortcuts.
+- Instruments are switched by clicking the instrument list, or with `[` / `]` for the previous / next one.
 - Samples load on demand when an instrument is first selected. While they load, a loading state is shown and the previous instrument stays playable. Playing switches to the new instrument once it is ready.
 - Version 1 loads samples from smplr's default hosts, so it needs a network connection. The sample base URL must be configurable so it can move to self-hosted files later.
 - A credits panel lists every sample source and its license. CC BY requires attribution.
@@ -200,7 +202,7 @@ Design rules:
 
 ## 7. Repository
 
-- Repository name: `keytone`. Git is initialized in the local folder `music-instrument`.
+- Repository name: `keytone`.
 - License: MIT for code. Sample licenses are listed in the credits.
 - READMEs: `README.md` in English and `README.zh-CN.md` in Chinese.
 - Code comments and docs are English-first.
