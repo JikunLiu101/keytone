@@ -94,6 +94,14 @@ describe("sanitize", () => {
     });
   });
 
+  it("defaults to 16 beats per line and keeps only the offered values", () => {
+    expect(defaults.beatsPerLine).toBe(16);
+    expect(sanitize({ beatsPerLine: 12 }, defaults).beatsPerLine).toBe(12);
+    expect(sanitize({ beatsPerLine: 13 }, defaults).beatsPerLine).toBe(16);
+    expect(sanitize({ beatsPerLine: "24" }, defaults).beatsPerLine).toBe(16);
+    expect(sanitize({}, defaults).beatsPerLine).toBe(16);
+  });
+
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
   });

@@ -3,7 +3,7 @@
  * editor, which adds a cursor and click-to-place.
  */
 import { codeLabel } from "../core/keymap";
-import { BAR_OVERHEAD, barGlyphs, keyHint, type Bar, type Glyph, type Line } from "../score/jianpu-layout";
+import { keyHint, type Glyph, type Line, type SheetMetrics } from "../score/jianpu-layout";
 import type { KeyName, Pitch, Score } from "../score/score";
 
 /** "Db" → "♭D", "F#" → "♯F": jianpu writes the accidental first (1=♭E). */
@@ -84,6 +84,8 @@ function PitchDigits({ pitches }: { pitches: Pitch[] }) {
 
 interface GlyphProps {
   glyph: Glyph;
+  /** Box width in px: the glyph's share of its beat. */
+  width: number;
   /** Practice: "current" is the note to play next, "played" is behind it. */
   practice?: "current" | "played" | "miss";
   /** Draw the editor cursor just before (or after) this glyph. */
@@ -92,13 +94,14 @@ interface GlyphProps {
   onPick?: (cursor: number) => void;
 }
 
-function GlyphView({ glyph, practice, caretBefore, caretAfter, onPick }: GlyphProps) {
+function GlyphView({ glyph, width, practice, caretBefore, caretAfter, onPick }: GlyphProps) {
   const single = glyph.type === "note" && glyph.pitches.length === 1 ? glyph.pitches[0] : null;
   const high = single && single.octave > 0 ? single.octave : 0;
   const low = single && single.octave < 0 ? -single.octave : 0;
   return (
     <span
       className={`j-glyph j-glyph--${glyph.type}${practice ? ` j-glyph--${practice}` : ""}`}
+      style={{ width }}
       data-event={glyph.event}
       onPointerDown={
         onPick
@@ -143,16 +146,12 @@ function practiceClass(g: Glyph, current: number | undefined, miss?: boolean): G
   return undefined;
 }
 
-export function lineSlots(bars: Bar[]): number {
-  return bars.reduce((n, b) => n + barGlyphs(b) + BAR_OVERHEAD, 0);
-}
-
 interface LinesProps {
   lines: Line[];
+  /** Pixel sizes of this sheet: every beat is `metrics.beat` wide (spec §11.2). */
+  metrics: SheetMetrics;
   /** True when the last of `lines` ends the score (gets the closing double bar). */
   endsScore: boolean;
-  /** The widest line's slots: sets the note spacing so short lines don't stretch. */
-  widest: number;
   /** Practice: the event to play next (−1 when complete), and whether to flash a wrong press. */
   current?: number;
   miss?: boolean;
@@ -162,53 +161,63 @@ interface LinesProps {
   onPick?: (cursor: number) => void;
 }
 
-export function JianpuLines({ lines, endsScore, widest, current, miss, cursor, eventCount = 0, onPick }: LinesProps) {
+/** Below this many px a gap before a group is rounding noise, not a rest in time. */
+const MIN_LEAD = 0.5;
+
+export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, onPick }: LinesProps) {
   return (
     <>
       {lines.map((line, li) => {
         const isLast = li === lines.length - 1;
-        const used = lineSlots(line.bars);
         return (
           <div key={li} className="j-line">
-            {line.bars.map((bar, bi) => (
-              // Bars share a line's width in proportion to their slots, so every
-              // note gets about one key's width.
-              <div
-                key={bi}
-                className={`j-bar ${endsScore && isLast && bi === line.bars.length - 1 ? "j-bar--final" : ""}`}
-                style={{ flexGrow: barGlyphs(bar) + BAR_OVERHEAD }}
-              >
-                {bar.groups.map((group, gi) => (
-                  <span key={gi} className="j-beam">
-                    {group.map((g, k) => {
-                      // The cursor sits before its event's note or rest (dashes follow it)…
-                      const caretBefore = cursor !== undefined && g.event === cursor && g.type !== "dash";
-                      // …or after the very last glyph when it is at the end.
-                      const caretAfter =
-                        cursor !== undefined &&
-                        cursor === eventCount &&
-                        g.event === eventCount - 1 &&
-                        isLast &&
-                        bi === line.bars.length - 1 &&
-                        gi === bar.groups.length - 1 &&
-                        k === group.length - 1;
-                      return (
-                        <GlyphView
-                          key={k}
-                          glyph={g}
-                          practice={practiceClass(g, current, miss)}
-                          caretBefore={caretBefore}
-                          caretAfter={caretAfter}
-                          onPick={onPick}
-                        />
-                      );
-                    })}
-                  </span>
-                ))}
-              </div>
-            ))}
-            {/* A short last line keeps the same note spacing instead of stretching. */}
-            {isLast && used < widest && <div className="j-spacer" style={{ flexGrow: widest - used }} />}
+            {line.bars.map((bar, bi) => {
+              // Bars are a fixed number of beats wide, whatever is in them. The
+              // bar line sits in the middle of the gap after the bar.
+              let end = 0; // beats: where the previous group's boxes end
+              return (
+                <div
+                  key={bi}
+                  className={`j-bar ${endsScore && isLast && bi === line.bars.length - 1 ? "j-bar--final" : ""}`}
+                  style={{ width: bar.beats * metrics.beat + metrics.gap / 2, paddingRight: metrics.gap / 2, marginRight: metrics.gap / 2 }}
+                >
+                  {bar.groups.map((group, gi) => {
+                    // Each note sits in its own time span, so a group starts where its time starts.
+                    const lead = (group[0].start - end) * metrics.beat;
+                    const tail = group[group.length - 1];
+                    end = tail.start + tail.span;
+                    return (
+                      <span key={gi} className="j-beam" style={lead > MIN_LEAD ? { marginLeft: lead } : undefined}>
+                        {group.map((g, k) => {
+                          // The cursor sits before its event's note or rest (dashes follow it)…
+                          const caretBefore = cursor !== undefined && g.event === cursor && g.type !== "dash";
+                          // …or after the very last glyph when it is at the end.
+                          const caretAfter =
+                            cursor !== undefined &&
+                            cursor === eventCount &&
+                            g.event === eventCount - 1 &&
+                            isLast &&
+                            bi === line.bars.length - 1 &&
+                            gi === bar.groups.length - 1 &&
+                            k === group.length - 1;
+                          return (
+                            <GlyphView
+                              key={k}
+                              glyph={g}
+                              width={g.span * metrics.beat}
+                              practice={practiceClass(g, current, miss)}
+                              caretBefore={caretBefore}
+                              caretAfter={caretAfter}
+                              onPick={onPick}
+                            />
+                          );
+                        })}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         );
       })}

@@ -1,43 +1,37 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { hub, scorePage } from "../app/services";
 import { useSettings, useT } from "../i18n/useT";
-import { layoutJianpu, pageOfEvent, type SheetSize } from "../score/jianpu-layout";
+import { layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
 import { PRACTICE_START, isComplete, phraseBackTarget, phraseStarts, practicePress, practiceSteps } from "../score/practice";
 import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
-import { JianpuLines, lineSlots, ScoreMeta } from "./JianpuView";
+import { barBeats } from "../score/score";
+import { JianpuLines, ScoreMeta } from "./JianpuView";
 
-/** Rough line height in slots, used before a line has been measured. */
-const LINE_SLOTS_GUESS = 1.9;
+/** Phones: a beat is at least this wide, so digits stay readable. */
+const MIN_PHONE_BEAT = 34;
 
 /**
- * How many slots fit on a line and lines on a page of `body`, given the
- * slot width in pixels. Re-measures when the body resizes.
+ * Measures `body`: its content width, and how many of its lines fit in its
+ * height (from a drawn line). Re-measures when the body resizes or `deps`
+ * change (anything that changes a line's height).
  */
-export function useSheetSize(body: RefObject<HTMLElement | null>, slot: number, deps: unknown[]): SheetSize {
-  const [size, setSize] = useState<SheetSize>({ slotsPerLine: 24, linesPerPage: 3 });
+export function useMeasureSheet(body: RefObject<HTMLElement | null>, onBox: (box: SheetBox) => void, deps: unknown[]): void {
   useLayoutEffect(() => {
     const el = body.current;
-    if (!el || !slot) return;
+    if (!el) return;
     const measure = () => {
+      const style = getComputedStyle(el);
+      const width = el.clientWidth - parseFloat(style.paddingLeft || "0") - parseFloat(style.paddingRight || "0");
       const line = el.querySelector<HTMLElement>(".j-line");
-      const lineHeight = line
-        ? line.offsetHeight + parseFloat(getComputedStyle(line).marginTop || "0")
-        : slot * LINE_SLOTS_GUESS;
-      const next = {
-        slotsPerLine: Math.max(4, Math.floor(el.clientWidth / slot)),
-        linesPerPage: Math.max(1, Math.floor((el.clientHeight + 1) / lineHeight)),
-      };
-      setSize((prev) =>
-        prev.slotsPerLine === next.slotsPerLine && prev.linesPerPage === next.linesPerPage ? prev : next,
-      );
+      const lineHeight = line ? line.offsetHeight + parseFloat(getComputedStyle(line).marginTop || "0") : 0;
+      onBox({ width, linesPerPage: lineHeight ? Math.max(1, Math.floor((el.clientHeight + 1) / lineHeight)) : 1 });
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [body, slot, ...deps]);
-  return size;
+  }, [body, ...deps]);
 }
 
 /** The current score, re-read when the user's library changes. */
@@ -51,38 +45,28 @@ export function useCurrentScore() {
  * The jianpu sheet standing on the glass: header, as many lines as fit, and
  * page buttons. Light bars keep glowing through it from behind.
  */
-export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number; compact?: boolean }) {
+export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   const t = useT();
-  const { scoreKeyHints, practice } = useSettings();
+  const { scoreKeyHints, practice, beatsPerLine } = useSettings();
   const resolved = useCurrentScore();
   const { score } = resolved;
   const sheetRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // One slot (a note's width) is one white key, measured from the keys themselves.
-  const [slot, setSlot] = useState(0);
-  useLayoutEffect(() => {
-    const keys = document.querySelector<HTMLElement>(".keys");
-    if (!keys) return;
-    // Phone keys are wide; a narrower slot fits a few bars per row there.
-    const measure = () => setSlot((keys.offsetWidth / whiteCount) * (compact ? 0.62 : 1));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(keys);
-    return () => observer.disconnect();
-  }, [whiteCount, compact]);
   // Phones: no computer keyboard, so no key hints; one line at a time.
   const hints = scoreKeyHints && !compact;
   const [hidden, setHidden] = useState(false);
-  const measured = useSheetSize(bodyRef, slot, [hints, hidden]);
-  const size = useMemo(
-    () => (compact ? { slotsPerLine: measured.slotsPerLine, linesPerPage: 1 } : measured),
-    [compact, measured],
-  );
+  const [box, setBox] = useState<SheetBox>({ width: 0, linesPerPage: 1 });
+  // Every beat has the same width: the line's width over N beats (spec §11.2).
+  const beats = compact ? Math.max(4, Math.min(beatsPerLine, Math.floor(box.width / MIN_PHONE_BEAT))) : beatsPerLine;
+  // A couple of px spare so rounding never pushes the last bar line out of view.
+  const metrics = useMemo(() => sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(score.time)), [box.width, beats, score.time]);
+  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [hints, hidden, metrics.font]);
 
-  const layout = useMemo(() => layoutJianpu(score, size), [score, size]);
+  const lines = useMemo(() => layoutLines(score, beats), [score, beats]);
+  const pages = useMemo(() => layoutPages(lines, compact ? 1 : box.linesPerPage), [lines, compact, box.linesPerPage]);
   const { page } = useSyncExternalStore(scorePage.subscribe, scorePage.get);
-  const pageCount = layout.pages.length;
+  const pageCount = pages.length;
   const current = Math.min(page, pageCount - 1);
 
   // A new score starts on its first page; tell page keys how many pages there are.
@@ -148,19 +132,17 @@ export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number
   // Turn the page as soon as the next note is on it.
   useEffect(() => {
     if (currentEvent === undefined || currentEvent < 0) return;
-    const target = pageOfEvent(layout, currentEvent);
+    const target = pageOfEvent(pages, currentEvent);
     if (target !== scorePage.get().page) scorePage.set({ page: target });
-  }, [currentEvent, layout]);
-
-  // The widest line sets the note spacing for all of them.
-  const widest = Math.max(1, ...layout.pages.flat().map((l) => lineSlots(l.bars)));
+  }, [currentEvent, pages]);
 
   return (
     <div
       ref={sheetRef}
       className={`sheet ${compact ? "sheet--compact" : ""} ${hidden ? "sheet--hidden" : ""}`}
       data-hints={hints || undefined}
-      style={slot ? { ["--j-slot" as string]: `${slot}px` } : undefined}
+      // Phones keep the one-row sheet short enough for the glass.
+      style={{ ["--j-size" as string]: `${compact ? Math.min(17, metrics.font) : metrics.font}px` }}
     >
       {compact && (
         <button
@@ -215,9 +197,9 @@ export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number
       <div className="sheet-body" ref={bodyRef}>
         <JianpuLines
           key={current}
-          lines={layout.pages[current]}
+          lines={pages[current]}
+          metrics={metrics}
           endsScore={current === pageCount - 1}
-          widest={widest}
           current={currentEvent}
           miss={miss}
         />

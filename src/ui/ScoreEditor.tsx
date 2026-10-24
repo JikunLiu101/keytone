@@ -6,7 +6,7 @@ import { isTyping } from "../input/keyboard-input";
 import { useSettings, useT } from "../i18n/useT";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
 import { edit, editorActionForCode, type EditorAction, type EditorState } from "../score/editor";
-import { layoutJianpu } from "../score/jianpu-layout";
+import { layoutLines, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
 import {
   addScore,
   duplicateScore,
@@ -32,8 +32,8 @@ import {
 import { CloseIcon } from "./icons";
 import { Select } from "./Select";
 import { showToast } from "./Toast";
-import { JianpuLines, keyLabel, lineSlots } from "./JianpuView";
-import { useCurrentScore, useSheetSize } from "./ScoreSheet";
+import { JianpuLines, keyLabel } from "./JianpuView";
+import { useCurrentScore, useMeasureSheet } from "./ScoreSheet";
 
 /** How long an auditioned note sounds. */
 const AUDITION_MS = 320;
@@ -59,7 +59,7 @@ function safeFilename(title: string): string {
  */
 export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const t = useT();
-  const { language, bindings, scoreKeyHints } = useSettings();
+  const { language, bindings, scoreKeyHints, beatsPerLine } = useSettings();
   const resolved = useCurrentScore();
   const readOnly = resolved.builtin;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -183,25 +183,14 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     };
   }, [onClose]);
 
-  // Layout: all lines, scrolling; a slot is sized to the editor's width.
-  const [slot, setSlot] = useState(36);
-  useLayoutEffect(() => {
-    const body = bodyRef.current;
-    if (!body) return;
-    const measure = () => setSlot(Math.max(30, Math.min(44, body.clientWidth / 30)));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(body);
-    return () => observer.disconnect();
-  }, []);
-  const size = useSheetSize(bodyRef, slot, [scoreKeyHints]);
-  const layout = useMemo(
-    () => layoutJianpu(state.score, { slotsPerLine: size.slotsPerLine, linesPerPage: Number.MAX_SAFE_INTEGER }),
-    [state.score, size.slotsPerLine],
+  // Layout: all lines, scrolling, laid out like the sheet on the glass (spec §11.2).
+  const [box, setBox] = useState<SheetBox>({ width: 0, linesPerPage: 1 });
+  const metrics = useMemo(
+    () => sheetMetrics(Math.max(0, box.width - 2), beatsPerLine, barBeats(state.score.time)),
+    [box.width, beatsPerLine, state.score.time],
   );
-  const lines = layout.pages[0];
-  // Lines grow from the left as you type instead of stretching across the paper.
-  const widest = Math.max(size.slotsPerLine, ...lines.map((l) => lineSlots(l.bars)));
+  useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font]);
+  const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [state.score, beatsPerLine]);
 
   // Keep the cursor in view.
   useEffect(() => {
@@ -393,7 +382,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       <div
         className="editor-sheet sheet-like"
         data-hints={scoreKeyHints || undefined}
-        style={{ ["--j-slot" as string]: `${slot}px` }}
+        style={{ ["--j-size" as string]: `${metrics.font}px` }}
         ref={bodyRef}
         onPointerDown={(e) => {
           // A click on empty paper puts the cursor at the end.
@@ -402,8 +391,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       >
         <JianpuLines
           lines={lines}
+          metrics={metrics}
           endsScore
-          widest={widest}
           cursor={readOnly ? undefined : state.cursor}
           eventCount={state.score.events.length}
           onPick={readOnly ? undefined : (cursor) => apply({ type: "moveTo", cursor })}

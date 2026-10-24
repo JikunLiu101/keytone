@@ -3,7 +3,7 @@ import { engine, hub, keyboard, settings } from "../app/services";
 import { FAMILIES, INSTRUMENTS, findInstrument, shortKey } from "../audio/instruments";
 import { dynamicMark } from "../core/dynamics";
 import { PALETTE_IDS } from "../view/palettes";
-import { SCORE_VIEWS } from "../app/settings";
+import { BEATS_PER_LINE, SCORE_VIEWS } from "../app/settings";
 import { listScores, userScores } from "../score/library";
 import { codeLabel } from "../core/keymap";
 import { useSettings, useT } from "../i18n/useT";
@@ -230,6 +230,14 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
               label: e.title,
               group: t(e.builtin ? "editor.builtins" : "editor.mine"),
             }))}
+        />
+        <Select
+          className="beats-select"
+          label={t("score.beatsPerLine")}
+          value={s.beatsPerLine}
+          disabled={s.scoreView !== "jianpu"}
+          onChange={(beatsPerLine: number) => settings.set({ beatsPerLine })}
+          options={BEATS_PER_LINE.map((n) => ({ value: n, label: t("score.beatsN").replace("{n}", String(n)) }))}
         />
         <button
           className={`latch latch--key-hints ${s.scoreKeyHints ? "latch--on" : ""}`}

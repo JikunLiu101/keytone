@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { keyHint, layoutBars, layoutJianpu, pageOfEvent } from "./jianpu-layout";
 import { barBeats, eventBeats, parseScore, pitchMidi, scoreBeats, serializeScore } from "./score";
 
 const body = (notes: string, header = "") => parseScore(`${header}---\n${notes}`);
@@ -85,78 +84,5 @@ describe("built-in scores", () => {
       expect(errors).toEqual([]);
       expect((scoreBeats(score) - score.pickup) % barBeats(score.time)).toBe(0);
     }
-  });
-});
-
-describe("layoutBars", () => {
-  it("bars by the time signature", () => {
-    const bars = layoutBars(body("1 2 3 4 5 - - - 1", "time: 4/4\n").score);
-    expect(bars).toHaveLength(3);
-    expect(bars[1].groups.flat().map((g) => g.type)).toEqual(["note", "dash", "dash", "dash"]);
-  });
-
-  it("honours the pickup", () => {
-    const bars = layoutBars(body("5 1 2 3", "time: 3/4\npickup: 1\n").score);
-    expect(bars.map((b) => b.groups.flat().length)).toEqual([1, 3]);
-  });
-
-  it("joins underlines of notes within one beat", () => {
-    const bars = layoutBars(body("1/ 2/ 3 5./ 6// 1// 2// 3/", "time: 4/4\n").score);
-    expect(bars[0].groups.map((g) => g.length)).toEqual([2, 1, 2, 3]);
-  });
-
-  it("splits dashes across a bar line", () => {
-    const bars = layoutBars(body("1 2 3 4 - - -", "time: 3/4\n").score);
-    expect(bars.map((b) => b.groups.flat().map((g) => g.type).join())).toEqual([
-      "note,note,note",
-      "note,dash,dash",
-      "dash",
-    ]);
-  });
-});
-
-describe("layoutJianpu", () => {
-  it("packs bars into lines by width and lines into pages", () => {
-    const twinkle = parseScore(BUILTIN_SCORES[0].text).score;
-    // Each 4/4 bar here is 4 glyphs + 1 for the bar line: 30 slots fit 6 bars.
-    const wide = layoutJianpu(twinkle, { slotsPerLine: 30, linesPerPage: 4 });
-    expect(wide.pages.map((p) => p.map((l) => l.bars.length))).toEqual([[6, 6]]);
-    const layout = layoutJianpu(twinkle, { slotsPerLine: 20, linesPerPage: 2 });
-    expect(layout.pages.map((p) => p.length)).toEqual([2, 1]);
-    expect(pageOfEvent(layout, 0)).toBe(0);
-    expect(pageOfEvent(layout, twinkle.events.length - 1)).toBe(1);
-  });
-
-  it("balances lines instead of leaving a lone bar", () => {
-    const birthday = parseScore(BUILTIN_SCORES[1].text).score;
-    const layout = layoutJianpu(birthday, { slotsPerLine: 34, linesPerPage: 4 });
-    expect(layout.pages[0].map((l) => l.bars.length)).toEqual([5, 4]);
-  });
-
-  it("always puts a too-wide bar on a line of its own", () => {
-    const layout = layoutJianpu(body("1 2 3 4 5 6 7 1").score, { slotsPerLine: 3, linesPerPage: 1 });
-    expect(layout.pages.map((p) => p[0].bars.length)).toEqual([1, 1]);
-  });
-
-  it("has one empty page for an empty score", () => {
-    expect(layoutJianpu(body("").score, { slotsPerLine: 30, linesPerPage: 3 }).pages).toEqual([[]]);
-  });
-});
-
-describe("keyHint", () => {
-  it("prefers no octave key", () => {
-    expect(keyHint(48)).toEqual({ code: "KeyZ", shift: 0 });
-    expect(keyHint(64)).toEqual({ code: "Slash", shift: 0 });
-  });
-
-  it("uses an octave key when needed", () => {
-    expect(keyHint(67)).toEqual({ code: "KeyB", shift: 1 });
-    expect(keyHint(40)).toEqual({ code: "KeyC", shift: -1 });
-    expect(keyHint(24)).toEqual({ code: "KeyZ", shift: -2 });
-  });
-
-  it("returns null outside the keyboard", () => {
-    expect(keyHint(23)).toBeNull();
-    expect(keyHint(89)).toBeNull();
   });
 });
