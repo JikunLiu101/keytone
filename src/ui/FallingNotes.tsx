@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { hub, keyboardWindow } from "../app/services";
+import { onScoreCommand, type ScoreCommand } from "../app/commands";
+import { phraseBackTarget, phraseStarts, practiceSteps } from "../score/practice";
+import { showToast } from "./Toast";
 import { useSettings, useT } from "../i18n/useT";
 import { FallingSession, type FallStatus } from "../score/falling";
 import type { AnchorSet } from "../view/effects-renderer";
@@ -208,6 +211,48 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
   };
   const empty = !session || session.notes.length === 0;
 
+  // Shortcuts (see core/shortcuts.ts). Read through a ref so the listener always sees this render.
+  const starts = useMemo(() => phraseStarts(resolved.score, practiceSteps(resolved.score)), [resolved.score]);
+  const commandRef = useRef<(c: ScoreCommand) => void>(() => {});
+  commandRef.current = (command) => {
+    const s = sessionRef.current;
+    if (!s || empty) return;
+    const speedTo = (dir: number) => {
+      const i = SPEEDS.indexOf(speed);
+      const next = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, i + dir))];
+      setSpeed(next);
+      showToast(t("toast.speed").replace("{n}", String(Math.round(next * 100))));
+    };
+    switch (command) {
+      case "playPause":
+        return togglePlay();
+      case "pause":
+        s.pause();
+        break;
+      case "restart":
+        return restart();
+      case "phraseBack":
+        if (s.status === "ready") return;
+        s.seekStep(phraseBackTarget(starts, s.currentStep()));
+        break;
+      case "stepBack":
+      case "stepForward":
+        if (!s.practice || s.status === "ready") return;
+        s.seekStep(s.step + (command === "stepBack" ? -1 : 1));
+        break;
+      case "speedUp":
+        return speedTo(1);
+      case "speedDown":
+        return speedTo(-1);
+      case "toggleLoop":
+        setLoop(!loop);
+        showToast(t(loop ? "toast.loopOff" : "toast.loopOn"));
+        return;
+    }
+    rendererRef.current?.redraw();
+  };
+  useEffect(() => onScoreCommand((c) => commandRef.current(c)), []);
+
   // Controls and messages: on the glass on a desktop, on the screen-fixed overlay on phones.
   const controls = (
     <div className={`fall-ui ${overlay ? "fall-ui--overlay" : ""}`}>
@@ -220,16 +265,23 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
             onClick={togglePlay}
             disabled={empty}
             aria-label={running ? t("fall.pause") : t("fall.play")}
-            title={running ? t("fall.pause") : t("fall.play")}
+            title={`${running ? t("fall.pause") : t("fall.play")} (Enter)`}
           >
             {running ? <PauseIcon /> : <PlayIcon />}
           </button>
-          <button className="fall-btn" onClick={restart} disabled={empty} aria-label={t("score.restart")} title={t("score.restart")}>
+          <button
+            className="fall-btn"
+            onClick={restart}
+            disabled={empty}
+            aria-label={t("score.restart")}
+            title={`${t("score.restart")} (${t("sc.holdBackspace")})`}
+          >
             <RestartIcon />
           </button>
           <Select
             className="fall-speed"
             label={t("fall.speed")}
+            hint="↑ ↓"
             value={speed}
             onChange={setSpeed}
             options={SPEEDS.map((v) => ({ value: v, label: `${Math.round(v * 100)}%` }))}
@@ -240,7 +292,7 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
             aria-checked={loop}
             onClick={() => setLoop(!loop)}
             aria-label={t("fall.loop")}
-            title={t("fall.loop")}
+            title={`${t("fall.loop")} (R)`}
           >
             <LoopIcon />
           </button>

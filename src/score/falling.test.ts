@@ -103,4 +103,24 @@ describe("FallingSession", () => {
   it("ignores keys when not running", () => {
     expect(new FallingSession(score("1"), false).press(48).kind).toBe("ignored");
   });
+
+  it("seeks back to a step and replays it", () => {
+    const s = new FallingSession(score("1 2 3 4"), false);
+    playTo(s, 2.1);
+    s.press(48);
+    expect([s.perfect, s.missing]).toEqual([0, 2]);
+    s.seekStep(1);
+    expect(s.missing).toBe(1); // note 0 is before the target and stays missed
+    expect(s.notes.slice(1).every((n) => n.state === "pending")).toBe(true);
+    expect(s.time).toBeCloseTo(1 - 1.2);
+    expect(s.currentStep()).toBe(1);
+  });
+
+  it("practice seek forward skips notes", () => {
+    const s = new FallingSession(score("1 2 3"), true);
+    playTo(s, 0);
+    s.seekStep(2);
+    expect(s.step).toBe(2);
+    expect(s.notes[0].state).toBe("hit");
+  });
 });

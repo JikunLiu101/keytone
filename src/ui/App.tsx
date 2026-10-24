@@ -2,7 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import { engine, keyboard, keyboardWindow, layoutOverride, pointers, scorePage, settings } from "../app/services";
 import { shouldUseCompact } from "../view/viewport";
 import { codeLabel } from "../core/keymap";
-import { attachKeyboardInput } from "../input/keyboard-input";
+import { attachKeyboardInput, isTyping } from "../input/keyboard-input";
+import { backspaceHold, sendScoreCommand, songSwitch, type ScoreCommand } from "../app/commands";
+import { SCORE_VIEWS } from "../app/settings";
+import { INSTRUMENTS } from "../audio/instruments";
+import { RESTART_HOLD_MS } from "../core/shortcuts";
+import { listScores } from "../score/library";
+import { HoldRing } from "./HoldRing";
 import { useSettings, useT } from "../i18n/useT";
 import { BindingsDialog } from "./BindingsDialog";
 import { ControlPanel } from "./ControlPanel";
@@ -10,7 +16,8 @@ import { CreditsDialog } from "./CreditsDialog";
 import { KeyboardNav } from "./KeyboardNav";
 import { KeyboardView, layout } from "./KeyboardView";
 import { ScoreEditor } from "./ScoreEditor";
-import { ToastHost } from "./Toast";
+import { ToastHost, showToast } from "./Toast";
+
 
 type DialogName = "bindings" | "credits" | "editor" | null;
 
@@ -77,6 +84,146 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Fixed shortcuts (core/shortcuts.ts). They only act while playing: not in
+  // dialogs or the editor, not while typing, and not on keys a control focused
+  // from the keyboard uses itself (Enter, Tab, arrows).
+  useEffect(() => {
+    let holdTimer = 0;
+    let holdFired = false;
+    let lastSwitch = 0;
+    const CONTROL_KEYS = new Set(["Enter", "NumpadEnter", "Tab", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
+    const keyboardFocus = () => {
+      const a = document.activeElement;
+      return a instanceof HTMLElement && a !== document.body && a.matches(":focus-visible");
+    };
+
+    const onDown = (e: KeyboardEvent) => {
+      if (dialogRef.current || isTyping(e.target) || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (CONTROL_KEYS.has(e.code) && keyboardFocus()) return;
+      const s = settings.get();
+      const falling = s.scoreView === "falling";
+      const scoreOn = s.scoreView !== "off";
+      const send = (command: ScoreCommand) => {
+        e.preventDefault();
+        sendScoreCommand(command);
+      };
+      switch (e.code) {
+        case "Backspace": {
+          if (!scoreOn || !(s.practice || falling)) return;
+          e.preventDefault();
+          if (e.repeat || holdTimer) return;
+          holdFired = false;
+          backspaceHold.set({ since: performance.now() });
+          holdTimer = window.setTimeout(() => {
+            holdFired = true;
+            holdTimer = 0;
+            backspaceHold.set({ since: null });
+            sendScoreCommand("restart");
+          }, RESTART_HOLD_MS);
+          return;
+        }
+        case "ArrowLeft":
+        case "ArrowRight":
+          if (scoreOn && s.practice) send(e.code === "ArrowLeft" ? "stepBack" : "stepForward");
+          return;
+        case "Enter":
+        case "NumpadEnter":
+          if (falling) send("playPause");
+          return;
+        case "ArrowUp":
+        case "ArrowDown":
+          if (falling) send(e.code === "ArrowUp" ? "speedUp" : "speedDown");
+          return;
+        case "KeyR":
+          if (falling) send("toggleLoop");
+          return;
+        case "Escape":
+          if (falling) sendScoreCommand("pause");
+          return;
+        case "KeyP":
+          if (!scoreOn) return;
+          settings.set({ practice: !s.practice });
+          showToast(t(s.practice ? "toast.practiceOff" : "toast.practiceOn"));
+          return;
+        case "Backquote": {
+          e.preventDefault();
+          const next = SCORE_VIEWS[(SCORE_VIEWS.indexOf(s.scoreView) + 1) % SCORE_VIEWS.length];
+          settings.set({ scoreView: next });
+          showToast(t("toast.view").replace("{v}", t(`score.view.${next}`)));
+          return;
+        }
+        case "Tab": {
+          e.preventDefault();
+          const list = listScores(s.language);
+          if (!list.length) return;
+          // Repeated presses step on from the song already on its way in.
+          const pending = songSwitch.get().target;
+          const from = pending && performance.now() - lastSwitch < 2000 ? pending : s.scoreId;
+          const i = Math.max(0, list.findIndex((x) => x.id === from));
+          const target = list[(i + (e.shiftKey ? -1 : 1) + list.length) % list.length];
+          lastSwitch = performance.now();
+          // The dropdown animates the change when it is on screen; otherwise switch and say so.
+          if (s.panelCollapsed || keyboardWindow.get().compact || !scoreOn) {
+            settings.set({ scoreId: target.id });
+            showToast(t("toast.song").replace("{title}", target.title));
+            songSwitch.set({ target: null });
+          } else {
+            songSwitch.set({ target: target.id, token: songSwitch.get().token + 1 });
+          }
+          return;
+        }
+        case "BracketLeft":
+        case "BracketRight": {
+          const i = Math.max(0, INSTRUMENTS.findIndex((x) => x.id === s.instrumentId));
+          const next = INSTRUMENTS[(i + (e.code === "BracketLeft" ? -1 : 1) + INSTRUMENTS.length) % INSTRUMENTS.length];
+          engine.unlock();
+          settings.set({ instrumentId: next.id });
+          showToast(t(next.nameKey));
+          return;
+        }
+        case "Minus":
+        case "Equal": {
+          const volume = Math.round(Math.max(0, Math.min(1, s.volume + (e.code === "Minus" ? -0.05 : 0.05))) * 100) / 100;
+          settings.set({ volume });
+          showToast(t("toast.volume").replace("{n}", String(Math.round(volume * 100))));
+          return;
+        }
+        case "KeyE":
+          if (!keyboardWindow.get().compact) setDialog("editor");
+          return;
+        case "F1":
+          e.preventDefault();
+          setDialog("bindings");
+          return;
+      }
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code !== "Backspace" || (!holdTimer && !holdFired)) return;
+      // A short press (released before the hold finished) goes back one phrase.
+      if (holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = 0;
+        backspaceHold.set({ since: null });
+        sendScoreCommand("phraseBack");
+      }
+      holdFired = false;
+    };
+    const cancelHold = () => {
+      window.clearTimeout(holdTimer);
+      holdTimer = 0;
+      backspaceHold.set({ since: null });
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", cancelHold);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", cancelHold);
+      cancelHold();
+    };
+  }, [t]);
 
   // Switching layout or opening/closing the panel moves the stage; re-measure
   // right away instead of waiting for the next resize notification.
@@ -158,6 +305,7 @@ export function App() {
       {dialog === "bindings" && <BindingsDialog onClose={() => setDialog(null)} />}
       {dialog === "credits" && <CreditsDialog onClose={() => setDialog(null)} />}
       {dialog === "editor" && <ScoreEditor onClose={closeDialog} />}
+      <HoldRing />
       <ToastHost />
     </div>
   );

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { bindingError, defaultSettings, sanitize, withBinding } from "./settings";
 import { detectLanguage } from "../i18n/strings";
-import { DEFAULT_BINDINGS } from "../core/keymap";
+import { DEFAULT_BINDINGS, NOTE_KEYS } from "../core/keymap";
+import { SHORTCUT_CODES } from "../core/shortcuts";
 
 describe("detectLanguage", () => {
   it("picks Chinese for zh locales and English otherwise", () => {
@@ -95,5 +96,40 @@ describe("sanitize", () => {
 
   it("drops unknown instruments", () => {
     expect(sanitize({ instrumentId: "kazoo" }, defaults).instrumentId).toBe(defaults.instrumentId);
+  });
+});
+
+describe("±2 octave defaults and shortcuts", () => {
+  const defaults = defaultSettings("en");
+
+  it("binds ±2 octaves to A and ' by default", () => {
+    expect(DEFAULT_BINDINGS.octaveDown2).toBe("KeyA");
+    expect(DEFAULT_BINDINGS.octaveUp2).toBe("Quote");
+  });
+
+  it("gives older saved settings the new ±2 defaults, unless the key is taken", () => {
+    const old = { bindings: { octaveDown2: null, octaveUp2: null, sustain: "Space" } };
+    expect(sanitize(old, defaults).bindings).toMatchObject({ octaveDown2: "KeyA", octaveUp2: "Quote" });
+    const taken = { bindings: { octaveDown2: null, octaveUp2: null, sustain: "KeyA" } };
+    expect(sanitize(taken, defaults).bindings).toMatchObject({ octaveDown2: null, octaveUp2: "Quote", sustain: "KeyA" });
+  });
+
+  it("keeps a deliberate unbind made after the defaults existed", () => {
+    const now = { bindingsRev: 2, bindings: { octaveDown2: null } };
+    expect(sanitize(now, defaults).bindings.octaveDown2).toBeNull();
+  });
+
+  it("refuses shortcut keys as bindings", () => {
+    for (const code of ["Backspace", "Enter", "Tab", "KeyP", "BracketLeft", "Minus"]) {
+      expect(bindingError(code)).not.toBeNull();
+    }
+    expect(bindingError("KeyP")).toBe("shortcut");
+  });
+
+  it("has no shortcut on a note key or a default binding", () => {
+    for (const code of SHORTCUT_CODES) {
+      expect(NOTE_KEYS[code]).toBeUndefined();
+      expect(Object.values(DEFAULT_BINDINGS)).not.toContain(code);
+    }
   });
 });

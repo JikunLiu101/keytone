@@ -33,8 +33,9 @@ export type KeyBindings = Record<BindableAction, string | null>;
 export const DEFAULT_BINDINGS: Readonly<KeyBindings> = {
   octaveDown1: "ShiftLeft",
   octaveUp1: "ShiftRight",
-  octaveDown2: null,
-  octaveUp2: null,
+  // A and ' sit above the Shifts' outer edges, mirroring the ±1 octave keys.
+  octaveDown2: "KeyA",
+  octaveUp2: "Quote",
   sustain: "Space",
 };
 
@@ -59,6 +60,12 @@ const CODE_LABELS: Record<string, string> = {
   Period: ".",
   Slash: "/",
   Semicolon: ";",
+  Quote: "'",
+  Backquote: "`",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Minus: "-",
+  Equal: "=",
   Space: "Space",
   ShiftLeft: "L Shift",
   ShiftRight: "R Shift",

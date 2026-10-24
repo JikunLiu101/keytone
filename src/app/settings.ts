@@ -1,6 +1,7 @@
 /** User settings, their defaults, validation and localStorage persistence. */
 import { DEFAULT_INSTRUMENT_ID, findInstrument } from "../audio/instruments";
 import { DEFAULT_BINDINGS, NOTE_KEYS, type BindableAction, type KeyBindings } from "../core/keymap";
+import { SHORTCUT_CODES } from "../core/shortcuts";
 import { detectLanguage, type Language } from "../i18n/strings";
 import { PALETTE_IDS, type PaletteId } from "../view/palettes";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
@@ -31,7 +32,12 @@ export interface Settings {
   language: Language;
   bindings: KeyBindings;
   panelCollapsed: boolean;
+  /** Version of the default key bindings the stored ones were made with. */
+  bindingsRev: number;
 }
+
+/** 2: ±2 octave keys got defaults (A and '). */
+export const BINDINGS_REV = 2;
 
 export const STORAGE_KEY = "keytone.settings.v1";
 
@@ -51,11 +57,12 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     bindings: { ...DEFAULT_BINDINGS },
     // Phones start with the panel tucked away so the keys get the room.
     panelCollapsed: smallTouchScreen,
+    bindingsRev: BINDINGS_REV,
   };
 }
 
 /** Why a key can't be bound, or null if it can. */
-export type BindingError = "noteKey" | "modifier" | "reserved";
+export type BindingError = "noteKey" | "modifier" | "reserved" | "shortcut";
 
 const MODIFIER_CODES = /^(Control|Alt|Meta|OS)(Left|Right)$/;
 const RESERVED_CODES = new Set(["Escape", "Tab", "CapsLock", "ContextMenu"]);
@@ -64,6 +71,7 @@ export function bindingError(code: string): BindingError | null {
   if (!code || code === "Unidentified") return "reserved";
   if (NOTE_KEYS[code] !== undefined) return "noteKey";
   if (MODIFIER_CODES.test(code)) return "modifier";
+  if (SHORTCUT_CODES.has(code)) return "shortcut";
   if (RESERVED_CODES.has(code) || /^F\d+$/.test(code)) return "reserved";
   return null;
 }
@@ -92,6 +100,14 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     const b = r.bindings as Record<string, unknown>;
     for (const action of Object.keys(bindings) as BindableAction[]) {
       const code = b[action];
+      // Settings saved before ±2 had defaults stored null there: give them the
+      // new defaults (unless that key is already used for something else).
+      const oldUnset = code === null && (typeof r.bindingsRev === "number" ? r.bindingsRev : 1) < 2 && (action === "octaveDown2" || action === "octaveUp2");
+      if (oldUnset) {
+        const fallback = DEFAULT_BINDINGS[action];
+        const taken = Object.values(b).includes(fallback);
+        if (!taken) continue;
+      }
       if (code === null) bindings = withBinding(bindings, action, null);
       else if (typeof code === "string" && bindingError(code) === null) {
         bindings = withBinding(bindings, action, code);
@@ -116,6 +132,7 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     language: r.language === "en" || r.language === "zh" ? r.language : defaults.language,
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,
+    bindingsRev: BINDINGS_REV,
   };
 }
 

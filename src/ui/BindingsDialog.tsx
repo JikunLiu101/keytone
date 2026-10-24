@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { settings } from "../app/services";
 import { bindingError, withBinding, type BindingError } from "../app/settings";
 import { DEFAULT_BINDINGS, codeLabel, type BindableAction } from "../core/keymap";
+import { SHORTCUTS } from "../core/shortcuts";
 import type { MessageKey } from "../i18n/strings";
 import { useSettings, useT } from "../i18n/useT";
 import { Dialog } from "./Dialog";
@@ -18,6 +19,7 @@ const ERROR_MESSAGES: Record<BindingError, MessageKey> = {
   noteKey: "bindings.err.noteKey",
   modifier: "bindings.err.modifier",
   reserved: "bindings.err.reserved",
+  shortcut: "bindings.err.shortcut",
 };
 
 export function BindingsDialog({ onClose }: { onClose: () => void }) {
@@ -90,6 +92,20 @@ export function BindingsDialog({ onClose }: { onClose: () => void }) {
           {t(ERROR_MESSAGES[error])}
         </p>
       )}
+      <h3 className="dialog-subtitle">{t("bindings.shortcuts")}</h3>
+      <p className="dialog-note">{t("bindings.shortcutsNote")}</p>
+      <ul className="shortcut-list">
+        {SHORTCUTS.map((sc) => (
+          <li key={sc.label} className="shortcut-row">
+            <span className="shortcut-keys">
+              {sc.keys.map((k, i) => (
+                <kbd key={i}>{k}</kbd>
+              ))}
+            </span>
+            <span>{t(sc.label)}</span>
+          </li>
+        ))}
+      </ul>
       <div className="dialog-actions">
         <button
           className="button button--ghost"

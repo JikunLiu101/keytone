@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { PRACTICE_START, isComplete, practicePress, practiceSteps, type PracticeState } from "./practice";
+import {
+  PRACTICE_START,
+  isComplete,
+  phraseBackTarget,
+  phraseStarts,
+  practicePress,
+  practiceSteps,
+  type PracticeState,
+} from "./practice";
 import { parseScore } from "./score";
 
 const steps = (notes: string) => practiceSteps(parseScore(`---\n${notes}`).score);
@@ -45,5 +53,23 @@ describe("practice", () => {
 
   it("is complete straight away for a score with no notes", () => {
     expect(isComplete(steps("0 0"), PRACTICE_START)).toBe(true);
+  });
+});
+
+describe("phrases", () => {
+  const score = parseScore("---\n1 2 3 - 4 5 0 6 7 1' - 2'").score;
+  const s = practiceSteps(score);
+  const starts = phraseStarts(score, s);
+
+  it("start after rests and held notes", () => {
+    // steps: 1 2 3- | 4 5 0 | 6 7 1'- | 2'
+    expect(starts).toEqual([0, 3, 5, 8]);
+  });
+
+  it("Backspace goes to the phrase start, then the one before", () => {
+    expect(phraseBackTarget(starts, 7)).toBe(5);
+    expect(phraseBackTarget(starts, 5)).toBe(3);
+    expect(phraseBackTarget(starts, 0)).toBe(0);
+    expect(phraseBackTarget(starts, s.length)).toBe(8);
   });
 });

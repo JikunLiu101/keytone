@@ -38,9 +38,10 @@ Then open http://localhost:5173.
 | `S D G H J` | C# D# F# G# A# |
 | `, . /` and `L ;` | C4 D4 E4 and C#4 D#4 |
 | Hold `Left Shift` / `Right Shift` | −1 / +1 octave |
+| Hold `A` / `'` | −2 / +2 octaves |
 | Hold `Space` | Sustain pedal |
 
-Octave and sustain keys can be changed under **Keys**. The ±2 octave keys are unbound by default.
+Octave and sustain keys can be changed under **Keys**, which also lists the fixed shortcuts (press `F1`): Backspace to go back a phrase in practice (hold to start over), Tab / Shift+Tab for the next / previous score, Enter to play falling notes, and more.
 
 You can also click and drag across the on-screen keys.
 

@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalS
 import { hub, scorePage } from "../app/services";
 import { useSettings, useT } from "../i18n/useT";
 import { layoutJianpu, pageOfEvent, type SheetSize } from "../score/jianpu-layout";
-import { PRACTICE_START, isComplete, practicePress, practiceSteps } from "../score/practice";
+import { PRACTICE_START, isComplete, phraseBackTarget, phraseStarts, practicePress, practiceSteps } from "../score/practice";
+import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
 import { JianpuLines, lineSlots, ScoreMeta } from "./JianpuView";
 
@@ -115,6 +116,28 @@ export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number
       setMiss(next.misses !== p.misses);
     });
   }, [practice, steps]);
+  // Shortcuts: Backspace (phrase back), held Backspace (restart), ← / → (one note).
+  const starts = useMemo(() => phraseStarts(score, steps), [score, steps]);
+  useEffect(() => {
+    if (!practice) return;
+    return onScoreCommand((command) => {
+      const p = progressRef.current;
+      const to =
+        command === "phraseBack"
+          ? phraseBackTarget(starts, p.step)
+          : command === "restart"
+            ? 0
+            : command === "stepBack"
+              ? p.step - 1
+              : command === "stepForward"
+                ? p.step + 1
+                : null;
+      if (to === null) return;
+      setProgress({ ...p, step: Math.max(0, Math.min(steps.length, to)), pressed: [] });
+      setMiss(false);
+    });
+  }, [practice, steps, starts]);
+
   // A wrong note flashes the current note briefly.
   useEffect(() => {
     if (!miss) return;
@@ -154,7 +177,12 @@ export function ScoreSheet({ whiteCount, compact = false }: { whiteCount: number
         <span className="sheet-title">{resolved.title}</span>
         <ScoreMeta score={score} />
         {practice && (
-          <button className="sheet-restart" onClick={restart} title={t("score.restart")} aria-label={t("score.restart")}>
+          <button
+            className="sheet-restart"
+            onClick={restart}
+            title={`${t("score.restart")} (${t("sc.holdBackspace")})`}
+            aria-label={t("score.restart")}
+          >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v2.8h2.8" />
             </svg>
