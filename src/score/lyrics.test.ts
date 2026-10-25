@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { alignLyrics, buildLyrics, itemAt, lyricSlots, parseLyrics, type LyricItem } from "./lyrics";
+import { alignLyrics, buildLyrics, changeEnd, itemIndexAt, leftoverWords, lyricSlots, parseLyrics, type LyricItem } from "./lyrics";
 import { parseScore } from "./score";
 
 /** Items as short strings: a word's text ("+" when it continues on the next note), "-" hold, "0" skip. */
@@ -23,6 +23,17 @@ describe("parseLyrics", () => {
 
   it("reads 0 as a note that is not sung, and keeps punctuation with the previous word", () => {
     expect(show(parseLyrics("无关0风月，我提笔-等 0 你回"))).toEqual(["无", "关", "0", "风", "月，", "我", "提", "笔", "-", "等", "0", "你", "回"]);
+  });
+
+  it("gives opening brackets and quotes to the next word", () => {
+    expect(show(parseLyrics("(hap-py) day 说“你好”"))).toEqual(["(hap+", "py)", "day", "说", "“你", "好”"]);
+    expect(show(parseLyrics('say "hi" now'))).toEqual(["say", '"hi"', "now"]);
+    expect(parseLyrics("(hap-py)")[0]).toMatchObject({ text: "(hap", from: 0, to: 4 });
+  });
+
+  it("keeps punctuation before the first word with that word", () => {
+    expect(show(parseLyrics("…啊 0"))).toEqual(["…啊", "0"]);
+    expect(show(parseLyrics("¿qué?"))).toEqual(["¿qué?"]);
   });
 
   it("keeps apostrophes and digits inside words", () => {
@@ -79,6 +90,13 @@ describe("alignLyrics", () => {
   });
 });
 
+describe("leftoverWords", () => {
+  it("lists the words after the last slot, not the holds and skips the sheet doesn't show", () => {
+    const score = parseScore("---\n1 2").score;
+    expect(leftoverWords(alignLyrics(lyricSlots(score), parseLyrics("一 二 三 - 0 四")))).toEqual(["三", "四"]);
+  });
+});
+
 describe("buildLyrics", () => {
   it("is null for a score without lyrics", () => {
     expect(buildLyrics(parseScore("---\n1 2").score)).toBeNull();
@@ -94,21 +112,21 @@ describe("buildLyrics", () => {
   });
 });
 
-describe("itemAt", () => {
+describe("itemIndexAt", () => {
   const items = parseLyrics("ab cd 乐");
 
   it("finds the item the text cursor is in or just after", () => {
-    expect(itemAt(items, 0)).toBe(0);
-    expect(itemAt(items, 1)).toBe(0);
-    expect(itemAt(items, 2)).toBe(0);
-    expect(itemAt(items, 3)).toBe(1);
-    expect(itemAt(items, 6)).toBe(2);
-    expect(itemAt(items, 7)).toBe(2);
+    expect(itemIndexAt(items, 0)).toBe(0);
+    expect(itemIndexAt(items, 1)).toBe(0);
+    expect(itemIndexAt(items, 2)).toBe(0);
+    expect(itemIndexAt(items, 3)).toBe(1);
+    expect(itemIndexAt(items, 6)).toBe(2);
+    expect(itemIndexAt(items, 7)).toBe(2);
   });
 
   it("uses the first item for a cursor in leading space, and none for empty lyrics", () => {
-    expect(itemAt(parseLyrics("  ab"), 0)).toBe(0);
-    expect(itemAt([], 0)).toBe(-1);
+    expect(itemIndexAt(parseLyrics("  ab"), 0)).toBe(0);
+    expect(itemIndexAt([], 0)).toBe(-1);
   });
 });
 
@@ -123,5 +141,15 @@ describe("built-in lyrics", () => {
         expect(misplaced).toEqual([]);
       }
     }
+  });
+});
+
+describe("changeEnd", () => {
+  it("is where the change ends in the new text, for the cursor after undo or redo", () => {
+    // Undoing 生日: the cursor goes back to where they were typed.
+    expect(changeEnd("祝你生日快乐", "祝你快乐")).toBe(2);
+    // Redoing "brave ": the cursor goes after it.
+    expect(changeEnd("hello world", "hello brave world")).toBe(12);
+    expect(changeEnd("abc", "abc")).toBe(3);
   });
 });

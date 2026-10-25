@@ -54,7 +54,7 @@ export function ControlPanel({ onOpenBindings, onOpenCredits, onOpenEditor }: Co
       onClick={() => settings.set({ language: s.language === "en" ? "zh" : "en" })}
       aria-label="Language / 语言"
     >
-      <Both en="中文" zh="EN" />
+      <Both en="中文" zh="EN" textLang={{ en: "zh", zh: "en" }} />
     </button>
   );
 

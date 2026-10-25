@@ -9,7 +9,7 @@ import type { Score } from "./score";
 export type LyricItem =
   | {
       kind: "word";
-      /** What is drawn: a Chinese character, an English word or part of one, plus any punctuation after it. */
+      /** What is drawn: a Chinese character, an English word or part of one, with any punctuation around it. */
       text: string;
       /** The word goes on over the next note (`hap-py`: "hap" joins next). */
       joinNext: boolean;
@@ -31,6 +31,8 @@ const SYLLABLE_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{S
 /** Characters that make up an English (or other spaced-script) word. */
 const WORD_CHAR = /[\p{L}\p{N}'’]/u;
 const LETTER = /\p{L}/u;
+/** Opening brackets and quotes: they go with the word after them. */
+const OPENING = /[\p{Ps}\p{Pi}]/u;
 
 /** Full-width forms a Chinese input method types, read like their ASCII twins. */
 function normalize(ch: string): string {
@@ -44,9 +46,26 @@ const isWordChar = (ch: string | undefined) => !!ch && WORD_CHAR.test(ch) && !SY
 export function parseLyrics(text: string): LyricItem[] {
   const items: LyricItem[] = [];
   let word: Extract<LyricItem, { kind: "word" }> | null = null;
+  // Punctuation waiting for the next word (an opening bracket or quote, or anything before the first word).
+  let head = null as { text: string; from: number } | null;
+  // A straight `"` opens a quote, the next one closes it.
+  let quoteOpen = false;
   const flush = () => {
     if (word) items.push(word);
     word = null;
+  };
+  /** A new word starting at `from`, taking any waiting punctuation. */
+  const startWord = (text: string, from: number, to: number): Extract<LyricItem, { kind: "word" }> => {
+    const w = { kind: "word" as const, text: (head?.text ?? "") + text, joinNext: false, joinPrev: false, from: head?.from ?? from, to };
+    head = null;
+    return w;
+  };
+  const lastWord = () => {
+    for (let k = items.length - 1; k >= 0; k--) {
+      const item = items[k];
+      if (item.kind === "word") return item;
+    }
+    return null;
   };
   const chars = Array.from(text);
   let offset = 0;
@@ -61,7 +80,7 @@ export function parseLyrics(text: string): LyricItem[] {
       flush();
     } else if (SYLLABLE_CHAR.test(ch)) {
       flush();
-      items.push({ kind: "word", text: ch, joinNext: false, joinPrev: false, from, to: offset });
+      items.push(startWord(ch, from, offset));
     } else if (ch === "-") {
       if (word && isWordChar(next)) {
         // Between two letters: the word goes on over the next note.
@@ -77,23 +96,31 @@ export function parseLyrics(text: string): LyricItem[] {
       flush();
       items.push({ kind: "skip", from, to: offset });
     } else if (isWordChar(ch)) {
-      if (!word) word = { kind: "word", text: "", joinNext: false, joinPrev: false, from, to: from };
+      if (!word) word = startWord("", from, from);
       word.text += raw;
       word.to = offset;
     } else {
-      // Punctuation stays with the previous word and takes no slot.
+      // Punctuation takes no slot. Opening brackets and quotes go with the next
+      // word, the rest with the previous one (or the next, before the first word).
+      const opening = OPENING.test(ch) || (ch === '"' && !quoteOpen);
+      if (ch === '"') quoteOpen = !quoteOpen;
       flush();
-      for (let k = items.length - 1; k >= 0; k--) {
-        const item = items[k];
-        if (item.kind === "word") {
-          item.text += raw;
-          item.to = offset;
-          break;
-        }
+      const previous = lastWord();
+      if (opening || !previous || head) {
+        head = { text: (head?.text ?? "") + raw, from: head?.from ?? from };
+      } else {
+        previous.text += raw;
+        previous.to = offset;
       }
     }
   }
   flush();
+  // Punctuation at the very end has no word after it: it goes with the last one.
+  const last = lastWord();
+  if (head && last) {
+    last.text += head.text;
+    last.to = offset;
+  }
   return items;
 }
 
@@ -122,17 +149,35 @@ export function alignLyrics(slots: Slot[], items: LyricItem[]): AlignedLyrics {
   return { bySlot, extra: items.slice(slots.length), misplaced };
 }
 
+/** The words left over after the last slot, as the sheet shows them (holds and skips show nothing). */
+export function leftoverWords(lyrics: Pick<AlignedLyrics, "extra">): string[] {
+  return lyrics.extra.flatMap((item) => (item.kind === "word" ? [item.text] : []));
+}
+
 /**
  * The item a text cursor at `offset` is in or just after (the first item
  * when it is in leading space); −1 when there are no items.
  */
-export function itemAt(items: LyricItem[], offset: number): number {
+export function itemIndexAt(items: LyricItem[], offset: number): number {
   if (!items.length) return -1;
   let found = 0;
   items.forEach((item, i) => {
     if (item.from <= offset) found = i;
   });
   return found;
+}
+
+/**
+ * Where a change from `before` to `after` ends, in `after`: the lyrics box puts
+ * its cursor there after undo or redo, instead of at the end of the text.
+ */
+export function changeEnd(before: string, after: string): number {
+  const max = Math.min(before.length, after.length);
+  let start = 0;
+  while (start < max && before[start] === after[start]) start++;
+  let end = 0;
+  while (end < max - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
+  return after.length - end;
 }
 
 /** Key of a slot, for looking items up by slot. */

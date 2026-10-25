@@ -199,6 +199,12 @@ export interface SheetMetrics {
 
 /** A bar-line gap, as a share of a beat. */
 const GAP_BEATS = 0.4;
+/** Digit size: this share of a beat, within these bounds. */
+const FONT_PER_BEAT = 0.36;
+const MIN_FONT = 11;
+const MAX_FONT = 24;
+/** A beat narrower than this would shrink digits below 11 px, where four sixteenth notes no longer fit. */
+export const MIN_BEAT = MIN_FONT / FONT_PER_BEAT;
 
 /**
  * Sizes for a sheet `width` px wide holding N beats a line. Room is left for
@@ -208,7 +214,37 @@ const GAP_BEATS = 0.4;
 export function sheetMetrics(width: number, beatsPerLine: number, barLength: number): SheetMetrics {
   const bars = Math.floor(beatsPerLine / barLength) + 1;
   const beat = width / (beatsPerLine + GAP_BEATS * bars);
-  return { beat, gap: GAP_BEATS * beat, font: Math.min(24, Math.max(11, 0.36 * beat)) };
+  return { beat, gap: GAP_BEATS * beat, font: Math.min(MAX_FONT, Math.max(MIN_FONT, FONT_PER_BEAT * beat)) };
+}
+
+/**
+ * How many beats a line of a sheet `width` px wide holds: N, or fewer when N
+ * would make digits smaller than 11 px (spec §11.2). N until the sheet is
+ * measured.
+ */
+export function fitBeats(width: number, beatsPerLine: number, barLength: number): number {
+  if (width <= 0) return beatsPerLine;
+  let n = beatsPerLine;
+  while (n > 1 && sheetMetrics(width, n, barLength).beat < MIN_BEAT) n--;
+  return n;
+}
+
+/** Below this many px a gap before a group is rounding noise, not a rest in time. */
+const MIN_LEAD = 0.5;
+
+/**
+ * The space before each of a bar's groups, in px: the time between the end
+ * of the group before and its start. The sheet draws glyphs one after another
+ * with these as margins, which puts them where placeLine says.
+ */
+export function groupLeads(bar: Bar, beat: number): number[] {
+  let end = 0; // beats: where the previous group's boxes end
+  return bar.groups.map((group) => {
+    const lead = (group[0].start - end) * beat;
+    const tail = group[group.length - 1];
+    end = tail.start + tail.span;
+    return lead > MIN_LEAD ? lead : 0;
+  });
 }
 
 export interface PlacedGlyph {
@@ -244,9 +280,10 @@ export function placeLine(line: Line, m: SheetMetrics): PlacedLine {
 export interface PlacedLyrics {
   /**
    * Words centred at `x` (px from the line start), drawn at `scale` of the
-   * lyrics font; punctuation after a word (`tail`) hangs to its right.
+   * lyrics font; punctuation before a word (`head`) hangs to its left, and
+   * after it (`tail`) to its right.
    */
-  words: { x: number; text: string; tail: string; scale: number; slot: Slot; misplaced: boolean }[];
+  words: { x: number; head: string; text: string; tail: string; scale: number; slot: Slot; misplaced: boolean }[];
   /** Brackets tying the parts of a split word into one word. */
   brackets: { x1: number; x2: number }[];
   /** Lines showing a word is held over the following beats. */
@@ -297,12 +334,14 @@ export function placeLyrics(line: PlacedLine, itemAt: (slot: Slot) => LyricItem 
     const left = k > 0 ? e.x - entries[wordEntries[k - 1]].x : Infinity;
     const right = k < wordEntries.length - 1 ? entries[wordEntries[k + 1]].x - e.x : Infinity;
     const room = 2 * Math.min(left, right) - pad;
-    const [, text, tail] = /^(.*?)([^\p{L}\p{N}'’]*)$/su.exec(e.item.text)!;
+    const [, head, text, tail] = /^([^\p{L}\p{N}'’]*)(.*?)([^\p{L}\p{N}'’]*)$/su.exec(e.item.text)!;
     const core = textWidthEm(text) * font;
-    const width = core + textWidthEm(tail) * font;
+    const before = textWidthEm(head) * font;
+    const after = textWidthEm(tail) * font;
+    const width = before + core + after;
     const scale = width > room ? Math.max(MIN_LYRIC_SCALE, room / width) : 1;
-    reach.set(i, { left: (core / 2) * scale, right: (width - core / 2) * scale });
-    words.push({ x: e.x, text, tail, scale, slot: e.slot, misplaced: e.slot.ext > 0 });
+    reach.set(i, { left: (before + core / 2) * scale, right: (core / 2 + after) * scale });
+    words.push({ x: e.x, head, text, tail, scale, slot: e.slot, misplaced: e.slot.ext > 0 });
   });
 
   const brackets: PlacedLyrics["brackets"] = [];

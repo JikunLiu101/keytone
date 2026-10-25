@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { engine, keyboard, pointers, settings } from "../app/services";
-import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, listMove, stepInstrument } from "../audio/instruments";
+import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, listMove, shownInstrumentId, stepInstrument } from "../audio/instruments";
 import { useSettings, useT } from "../i18n/useT";
 
 /** One column of the list per family, in display order. */
@@ -47,7 +47,7 @@ export function InstrumentPicker() {
   const [place, setPlace] = useState<Placement | null>(null);
 
   // The screen shows what is loading (blinking) until it is ready, then what plays.
-  const shown = findInstrument(status.loadingId ?? status.currentId ?? instrumentId) ?? INSTRUMENTS[0];
+  const shown = findInstrument(shownInstrumentId(status, instrumentId)) ?? INSTRUMENTS[0];
   const where = familyPlace(shown.id);
   const family = FAMILIES.find((f) => f.id === where.family) ?? FAMILIES[0];
   const loading = status.loadingId !== null;
@@ -90,12 +90,21 @@ export function InstrumentPicker() {
         above,
       });
     };
+    // Scrolling the list itself doesn't move the screen.
+    const onScroll = (e: Event) => {
+      if (!listRef.current?.contains(e.target as Node)) measure();
+    };
     measure();
     window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, true);
+    window.addEventListener("scroll", onScroll, true);
+    // The panel can change under the open list (a "Couldn't load" row appears), moving the screen.
+    const observer = new ResizeObserver(measure);
+    const panel = screenRef.current?.closest("header");
+    if (panel) observer.observe(panel);
     return () => {
       window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("scroll", onScroll, true);
+      observer.disconnect();
     };
   }, [open]);
 
@@ -111,6 +120,13 @@ export function InstrumentPicker() {
     window.addEventListener("pointerdown", onDown, true);
     return () => window.removeEventListener("pointerdown", onDown, true);
   }, [shownList]);
+
+  const optionId = (col: number, row: number) => `${id}-${col}-${row}`;
+
+  // Keep the highlighted option in view when the list scrolls (small windows).
+  useEffect(() => {
+    if (shownList) document.getElementById(optionId(active.col, active.row))?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [shownList, active]);
 
   const onListKey = (e: KeyboardEvent<HTMLDivElement>) => {
     switch (e.key) {
@@ -131,11 +147,11 @@ export function InstrumentPicker() {
         e.stopPropagation();
         return close();
       case "Tab":
-        return close(false);
+        // Focus the screen before the browser moves on, so Tab goes on to ▲
+        // (Shift+Tab back before the screen), not from the top of the page.
+        return close();
     }
   };
-
-  const optionId = (col: number, row: number) => `${id}-${col}-${row}`;
 
   return (
     <div className="picker">
@@ -146,7 +162,8 @@ export function InstrumentPicker() {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? `${id}-list` : undefined}
-        aria-label={`${t("panel.instrument")}: ${t(shown.nameKey)}`}
+        aria-label={`${t("panel.instrument")}: ${t(shown.nameKey)}, ${t(family.nameKey)} ${where.index}/${where.count}`}
+        aria-busy={loading || undefined}
         title={`${t("panel.chooseInstrument")} ([ / ])`}
         onClick={() => (open ? close() : openList())}
         onKeyDown={(e) => {
@@ -162,10 +179,10 @@ export function InstrumentPicker() {
         <span className="picker-name">{t(shown.nameKey)}</span>
       </button>
       <div className="picker-steps">
-        <button type="button" className="picker-step" aria-label={t("panel.prevInstrument")} title={`${t("panel.prevInstrument")} ([)`} onClick={() => pick(stepInstrument(instrumentId, -1).id)}>
+        <button type="button" className="picker-step" aria-label={t("panel.prevInstrument")} title={`${t("panel.prevInstrument")} ([)`} onClick={() => pick(stepInstrument(shown.id, -1).id)}>
           ▲
         </button>
-        <button type="button" className="picker-step" aria-label={t("panel.nextInstrument")} title={`${t("panel.nextInstrument")} (])`} onClick={() => pick(stepInstrument(instrumentId, 1).id)}>
+        <button type="button" className="picker-step" aria-label={t("panel.nextInstrument")} title={`${t("panel.nextInstrument")} (])`} onClick={() => pick(stepInstrument(shown.id, 1).id)}>
           ▼
         </button>
       </div>
@@ -207,8 +224,10 @@ export function InstrumentPicker() {
                       id={optionId(col, row)}
                       role="option"
                       aria-selected={inst.id === status.currentId}
+                      aria-busy={state === "loading" || undefined}
                       className={`picker-option picker-option--${state}${isActive ? " picker-option--active" : ""}`}
-                      onPointerMove={() => setActive({ col, row })}
+                      // Only a move onto another option re-renders the list.
+                      onPointerMove={() => setActive((a) => (a.col === col && a.row === row ? a : { col, row }))}
                       onClick={() => {
                         pick(inst.id);
                         // A mouse or touch pick gives the keys back to playing,
@@ -218,6 +237,8 @@ export function InstrumentPicker() {
                     >
                       <span className="led" aria-hidden="true" />
                       {t(inst.nameKey)}
+                      {state === "loading" && <span className="visually-hidden">, {t("status.loading")}</span>}
+                      {state === "error" && <span className="visually-hidden">, {t("status.failed")}</span>}
                     </div>
                   );
                 })}

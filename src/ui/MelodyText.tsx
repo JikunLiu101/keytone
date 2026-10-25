@@ -26,7 +26,8 @@ const Caret = () => <i className="mt-caret" aria-hidden="true" />;
 
 export function MelodyText({ score, lines, cursor, selection, highlight, label, readOnly, showCaret = true }: MelodyTextProps) {
   const count = score.events.length;
-  const caret = !readOnly && showCaret;
+  // Built-in scores show the cursor too: it selects notes to copy.
+  const caret = showCaret;
   return (
     <div className="melody-text" role="textbox" aria-multiline="true" aria-readonly={readOnly} aria-label={label} tabIndex={0}>
       {lines.map((line, li) => (

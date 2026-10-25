@@ -173,6 +173,15 @@ export function findInstrument(id: string): InstrumentDef | undefined {
   return INSTRUMENTS.find((i) => i.id === id);
 }
 
+/**
+ * The instrument the picker shows, and ▲ / ▼ and `[` / `]` step from: the one
+ * loading, else the one playing (still the old one after a failed load), else
+ * the setting.
+ */
+export function shownInstrumentId(status: { loadingId: string | null; currentId: string | null }, chosen: string): string {
+  return status.loadingId ?? status.currentId ?? chosen;
+}
+
 /** The next (1) or previous (−1) instrument in display order, wrapping at the ends. */
 export function stepInstrument(id: string, direction: 1 | -1): InstrumentDef {
   const i = Math.max(0, INSTRUMENTS.findIndex((x) => x.id === id));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { barBeats, eventBeats, parseScore, pitchMidi, readTempo, scoreBeats, serializeScore, settleTempo } from "./score";
+import { barBeats, emptyScore, eventBeats, isEmptyScore, parseScore, pitchMidi, readTempo, scoreBeats, serializeScore, settleTempo } from "./score";
 
 const body = (notes: string, header = "") => parseScore(`${header}---\n${notes}`);
 
@@ -93,6 +93,19 @@ describe("serializeScore", () => {
     expect(text.endsWith("---\nhap-py --\n")).toBe(true);
     expect(parseScore(text).score).toEqual(withLyrics);
     expect(serializeScore(body("1 2", "title: x\n").score).match(/---/g)).toHaveLength(1);
+  });
+});
+
+describe("isEmptyScore", () => {
+  it("is false for a score with lyrics but no notes yet, which exports and imports back", () => {
+    const lyricsOnly = { ...emptyScore("Song"), lyrics: "祝你生日快乐" };
+    const back = parseScore(serializeScore(lyricsOnly)).score;
+    expect(back.lyrics).toBe("祝你生日快乐");
+    expect(isEmptyScore(back)).toBe(false);
+  });
+
+  it("is true with neither notes nor lyrics", () => {
+    expect(isEmptyScore(parseScore("hello, not a score").score)).toBe(true);
   });
 });
 

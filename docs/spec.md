@@ -429,6 +429,7 @@ Replaces the note-width layout of §10.1, on the sheet and in the editor.
 - Underlines, octave dots, accidentals and augmentation dots are drawn as now. Underlines still join within a beat.
 - Key hints stay under their notes. Where fast notes leave no room for them, the builder decides how to keep them readable.
 - On phones (one row, §10.7) the builder picks an N that keeps digits readable.
+- Any sheet too narrow for N beats with digits of at least 11 px (the editor in a small window, say) puts fewer beats on a line instead, so fast notes never overlap.
 - Pages, page turning and practice mode work as before.
 
 ### 11.3 Lyrics
@@ -447,7 +448,7 @@ One line of lyrics per score. When the same melody is sung twice with different 
 | `-` between two letters, as in `si-lence` | The word is split across notes | 1 per part |
 | `-` on its own, or next to a Chinese character | Keep singing the previous word | 1 |
 | `0` | This note is not sung | 1 |
-| Punctuation | Stays with the previous word | 0 |
+| Punctuation | Stays with the previous word. An opening bracket or quote (`(`, `“`, `《`, the first of a pair of `"`) goes with the next word, and so does punctuation before the first word | 0 |
 
 - Spaces separate English words. Between Chinese characters, spaces are ignored.
 - Full-width `－` and `０`, as typed with a Chinese input method, count as `-` and `0`.
@@ -507,6 +508,7 @@ Replaces the editor layout and text view of §10.3. The note-entry keys of §10.
 **One cursor**
 - A note and its `-`s are one unit, as in the score itself. The melody cursor stops only between notes, as in §10.3: clicking a `-` puts the cursor after its note, and Backspace after a held note removes one `-` first.
 - Clicking a note on the left, or a place in the melody text, puts the cursor on that note in both.
+- A click beside a line puts the cursor at that end of the line; a click below the last line, at the end of the score.
 - Clicking a lyric on the left puts the cursor on that item in the lyrics text.
 - While the cursor is in the lyrics text, the note its item falls on is highlighted on the left and in the melody text.
 
@@ -520,17 +522,18 @@ Replaces the editor layout and text view of §10.3. The note-entry keys of §10.
 - Drag on the left or in the melody text, or hold `Shift` with ← / → or a click. The selection shows on both sides. It always covers whole notes, each with its `-`s.
 - `Ctrl/⌘+C` copies the selected notes as melody text, `Ctrl/⌘+X` cuts them, and Backspace or Delete removes them.
 - Typing a note or pasting replaces the selection.
+- Built-in scores can't be changed, but their notes can be selected and copied the same way.
 
 **Lyrics text.** A plain text box: any language, any input method, normal selection, copy and paste. The rules are those of §11.3.
 
-**Undo.** `Ctrl/⌘+Z` undoes and `Ctrl/⌘+Shift+Z` redoes. Melody, lyrics and the fields share one history.
+**Undo.** `Ctrl/⌘+Z` undoes and `Ctrl/⌘+Shift+Z` redoes. Melody, lyrics and the fields share one history. After undo or redo, the cursor in the lyrics box sits where the change was.
 
-**Warnings.** A word that falls under a melody `-`, and lyrics left over after the last slot, are marked on the left. The lyrics box says how many items are left over. The builder decides the exact look.
+**Warnings.** A word that falls under a melody `-`, and lyrics left over after the last slot, are marked on the left. The lyrics box says how many words are left over (holds and skips don't count: they show nothing). Only the editor marks these; the sheet on the glass doesn't. The builder decides the exact look.
 
 Auto-save, auditioning entered notes, and refusing notes outside the keyboard's range work as before. Phones still have no editing.
 
 ### 11.5 Toasts
-All short messages (toasts) move from the bottom of the screen to its upper part, where the player is looking: below the control panel, over the top of the glass. The builder picks the exact spot and shows it before it is committed.
+All short messages (toasts) move from the bottom of the screen to its upper part, where the player is looking: below the control panel, over the top of the glass. The builder picks the exact spot and shows it before it is committed. In the editor, toasts sit over the top of the sheet, clear of the header's buttons.
 
 ### 11.6 Not in this version
 More than one line of lyrics (verses), repeat signs, lyrics in the falling-notes view, automatic splitting of English words.
@@ -579,7 +582,7 @@ The instruments are regrouped. Display order:
 | Plucked & mallets | Nylon Guitar, Vibraphone, Xylophone, Music Box |
 | Voice & synth | Choir, Synth Lead, Synth Pad |
 
-`[` / `]` and the picker's ▲ / ▼ step through this order and wrap around at the ends.
+`[` / `]` and the picker's ▲ / ▼ step through this order and wrap around at the ends. They step from the instrument shown: after a failed load, the one still playing.
 
 - The screen and the list show each instrument's full name. "Strings" is renamed "String Ensemble", so the Strings family doesn't hold an item called Strings. The short names used on the old pads go away.
 
@@ -588,14 +591,14 @@ Replaces the instrument pads in the control panel.
 - **Closed**: one control about the size of a large button, styled like the LCD on the keyboard (§5): a dark teal screen with glowing cyan type.
   - A small line shows the family and the instrument's place in it, for example `STRINGS · 1/4` (Chinese: `弦乐 · 1/4`).
   - The instrument's name is in large type below it.
-  - Two small keys at its right, ▲ and ▼, step to the previous / next instrument.
+  - Two small keys at its right, ▲ and ▼, step to the previous / next instrument. On phones the screen is taller and the keys are larger, to be easy to tap.
 - It shares one row with volume and velocity.
 - **Open**: clicking the screen opens a list below it, styled the same way.
   - One column per family: the family name on top, its instruments below. The current instrument has a lit LED.
   - Clicking an instrument selects it and closes the list. Esc, a click outside or another click on the screen closes it too.
-  - Keyboard: ↑ / ↓ move within a family's column, ← / → move between columns, Enter picks, Esc closes.
+  - Keyboard: ↑ / ↓ move within a family's column, ← / → move between columns, Enter picks, Esc closes, and Tab closes it and moves on to ▲.
   - The list fits in the window. On narrow screens (phones) the columns wrap; the builder decides how.
-- **Loading and errors** show as they do now: the instrument being loaded blinks, in the screen and in the list, and a failed one is marked in the list.
+- **Loading and errors** show as they do now: the instrument being loaded blinks, in the screen and in the list, and a failed one is marked in the list. Going back to the instrument still playing clears the error.
 - While the list is open, the computer keyboard neither plays notes nor triggers single-key shortcuts, as in other dialogs; notes held when it opens are released. Closing it gives the keys back.
 - The screen has one fixed width that fits the longest of the 21 names in either language.
 

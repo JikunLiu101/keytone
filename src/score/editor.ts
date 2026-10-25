@@ -36,8 +36,7 @@ export type EditorAction =
   /** Move the cursor and keep (or start) a selection from where it was. */
   | { type: "select"; cursor: number }
   /** Insert events at the cursor, replacing the selection (paste). */
-  | { type: "insert"; events: ScoreEvent[] }
-  | { type: "replace"; score: Score };
+  | { type: "insert"; events: ScoreEvent[] };
 
 export interface EditResult {
   state: EditorState;
@@ -201,9 +200,43 @@ export function edit(state: EditorState, action: EditorAction): EditResult {
       return { state: withEvents(state, events, events.length) };
     case "moveTo":
       return { state: withEvents(state, events, action.cursor) };
-    case "replace":
-      return { state: { score: action.score, cursor: Math.min(state.cursor, action.score.events.length), anchor: null } };
   }
+}
+
+/** Where a note's token or glyph (or one of its `-`s) is drawn, in px. */
+export interface CursorBox {
+  event: number;
+  dash: boolean;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The cursor for a click at (x, y) on a line of notes (spec §11.4): at the
+ * nearest note or `-` (in the same row first), before it on its left half,
+ * after it on its right half. A `-` belongs to its note, so the cursor goes
+ * after the note. So a click beside a line goes to that end of it. Null when
+ * the line has no notes.
+ */
+export function cursorFromBoxes(boxes: CursorBox[], x: number, y: number): number | null {
+  const distance = (v: number, lo: number, hi: number) => (v < lo ? lo - v : v > hi ? v - hi : 0);
+  let best: CursorBox | null = null;
+  let bestDy = Infinity;
+  let bestDx = Infinity;
+  for (const box of boxes) {
+    const dy = distance(y, box.top, box.bottom);
+    const dx = distance(x, box.left, box.right);
+    if (dy < bestDy || (dy === bestDy && dx < bestDx)) {
+      best = box;
+      bestDy = dy;
+      bestDx = dx;
+    }
+  }
+  if (!best) return null;
+  if (best.dash) return best.event + 1;
+  return x < (best.left + best.right) / 2 ? best.event : best.event + 1;
 }
 
 /** Digit and symbol keys the editor understands, by `KeyboardEvent.code`. */
