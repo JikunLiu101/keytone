@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { keyHint, layoutBars, layoutLines, layoutPages, lyricFont, pageOfEvent, placeLine, placeLyrics, sameSheetBox, sheetMetrics } from "./jianpu-layout";
+import { MIN_BEAT, fitBeats, groupLeads, keyHint, layoutBars, layoutLines, layoutPages, lyricFont, pageOfEvent, placeLine, placeLyrics, sameSheetBox, sheetMetrics } from "./jianpu-layout";
 import { alignLyrics, lyricSlots, parseLyrics, slotKey } from "./lyrics";
 import { parseScore } from "./score";
 
@@ -227,8 +227,60 @@ describe("placeLyrics", () => {
     expect(placed.holds[0].x1).toBeGreaterThan(25 + 6 + 12);
   });
 
+  it("centres a word without an opening bracket, which hangs before it", () => {
+    const placed = place("1 2", "(一 二)");
+    expect(placed.words.map((w) => [w.head, w.text, w.tail, w.x])).toEqual([
+      ["(", "一", "", 25],
+      ["", "二", ")", 75],
+    ]);
+  });
+
   it("marks a word that falls on a dash", () => {
     expect(place("1 - 2", "一 二 三").words.map((w) => w.misplaced)).toEqual([false, true, false]);
+  });
+});
+
+describe("fitBeats", () => {
+  it("keeps N beats while digits stay at 11 px or more", () => {
+    expect(fitBeats(900, 16, 4)).toBe(16);
+  });
+
+  it("puts fewer beats on a line too narrow for N with readable digits", () => {
+    // 600 px at N = 32 in 4/4: about 17 px a beat, too narrow for 11 px digits.
+    const n = fitBeats(600, 32, 4);
+    expect(n).toBeLessThan(32);
+    expect(sheetMetrics(600, n, 4).beat).toBeGreaterThanOrEqual(MIN_BEAT);
+    expect(sheetMetrics(600, n + 1, 4).beat).toBeLessThan(MIN_BEAT);
+  });
+
+  it("keeps N before the sheet is measured", () => {
+    expect(fitBeats(0, 16, 4)).toBe(16);
+  });
+});
+
+describe("groupLeads", () => {
+  it("puts each glyph drawn in flow where placeLine says, so notes and lyrics line up", () => {
+    const m = sheetMetrics(900, 16, 4);
+    const scores = [...BUILTIN_SCORES.map((b) => parseScore(b.text).score), body("0/ 5// 6// 1 - 2. 3/ | 1/ 0/ 0 5", "time: 4/4\npickup: 1.5\n")];
+    for (const score of scores) {
+      for (const line of layoutLines(score, 16)) {
+        const placed = placeLine(line, m);
+        const flow: number[] = [];
+        line.bars.forEach((bar, bi) => {
+          let x = placed.bars[bi].x;
+          const leads = groupLeads(bar, m.beat);
+          bar.groups.forEach((group, gi) => {
+            x += leads[gi];
+            for (const glyph of group) {
+              flow.push(x);
+              x += glyph.span * m.beat;
+            }
+          });
+        });
+        expect(flow.length).toBe(placed.glyphs.length);
+        flow.forEach((x, i) => expect(x).toBeCloseTo(placed.glyphs[i].x, 6));
+      }
+    }
   });
 });
 

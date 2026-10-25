@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, listMove, stepInstrument } from "./instruments";
+import { FAMILIES, INSTRUMENTS, familyPlace, findInstrument, listMove, shownInstrumentId, stepInstrument } from "./instruments";
 
 describe("instruments", () => {
   it("has 21 instruments with unique ids, keeping every id from before version 5", () => {
@@ -41,6 +41,15 @@ describe("stepInstrument", () => {
 
   it("starts from the first instrument for an unknown id", () => {
     expect(stepInstrument("nope", 1).id).toBe("wurlitzer");
+  });
+});
+
+describe("shownInstrumentId", () => {
+  it("is the instrument loading, else the one playing, else the setting", () => {
+    expect(shownInstrumentId({ loadingId: "cello", currentId: "violin" }, "cello")).toBe("cello");
+    // Harmonica failed to load: violin still plays, so the screen (and ▲ / ▼) start from violin.
+    expect(shownInstrumentId({ loadingId: null, currentId: "violin" }, "harmonica")).toBe("violin");
+    expect(shownInstrumentId({ loadingId: null, currentId: null }, "viola")).toBe("viola");
   });
 });
 

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { hub, scorePage } from "../app/services";
 import { useSettings, useT } from "../i18n/useT";
-import { layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
+import { fitBeats, layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
 import { PRACTICE_START, isComplete, phraseStarts, practicePress, practiceSteps, practiceTarget } from "../score/practice";
 import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
@@ -58,8 +58,10 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   const hints = scoreKeyHints && !compact;
   const [hidden, setHidden] = useState(false);
   const [box, setBox] = useState<SheetBox>({ width: 0, linesPerPage: 1 });
-  // Every beat has the same width: the line's width over N beats (spec §11.2).
-  const beats = compact ? Math.max(4, Math.min(beatsPerLine, Math.floor(box.width / MIN_PHONE_BEAT))) : beatsPerLine;
+  // Every beat has the same width: the line's width over N beats (spec §11.2),
+  // fewer when the sheet is too narrow for N with readable digits.
+  const wanted = compact ? Math.max(4, Math.min(beatsPerLine, Math.floor(box.width / MIN_PHONE_BEAT))) : beatsPerLine;
+  const beats = fitBeats(Math.max(0, box.width - 2), wanted, barBeats(score.time));
   // A couple of px spare so rounding never pushes the last bar line out of view.
   const metrics = useMemo(() => {
     const m = sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(score.time));

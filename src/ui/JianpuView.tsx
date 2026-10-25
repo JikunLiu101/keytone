@@ -3,8 +3,8 @@
  * editor, which adds a cursor and click-to-place.
  */
 import { codeLabel } from "../core/keymap";
-import { keyHint, lyricFont, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics, type Slot } from "../score/jianpu-layout";
-import type { ScoreLyrics } from "../score/lyrics";
+import { groupLeads, keyHint, lyricFont, placeLine, placeLyrics, type Glyph, type Line, type PlacedLyrics, type SheetMetrics, type Slot } from "../score/jianpu-layout";
+import { leftoverWords, type ScoreLyrics } from "../score/lyrics";
 import type { KeyName, Pitch, Score } from "../score/score";
 
 /** "Db" → "♭D", "F#" → "♯F": jianpu writes the accidental first (1=♭E). */
@@ -190,6 +190,7 @@ function LyricsRow({ placed, current, font }: { placed: PlacedLyrics; current?: 
           data-lyric-event={w.slot.event}
           data-lyric-ext={w.slot.ext}
         >
+          {w.head && <span className="j-lyric-head">{w.head}</span>}
           {w.text}
           {w.tail && <span className="j-lyric-tail">{w.tail}</span>}
         </span>
@@ -198,11 +199,8 @@ function LyricsRow({ placed, current, font }: { placed: PlacedLyrics; current?: 
   );
 }
 
-/** Below this many px a gap before a group is rounding noise, not a rest in time. */
-const MIN_LEAD = 0.5;
-
 export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, eventCount = 0, selection, highlight, lyrics }: LinesProps) {
-  const extra = endsScore && lyrics ? lyrics.extra.flatMap((item) => (item.kind === "word" ? [item.text] : [])) : [];
+  const extra = endsScore && lyrics ? leftoverWords(lyrics) : [];
   const lyricsFont = lyricFont(metrics.font);
   return (
     <>
@@ -218,7 +216,7 @@ export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, 
             {line.bars.map((bar, bi) => {
               // Bars are a fixed number of beats wide, whatever is in them. The
               // bar line sits in the middle of the gap after the bar.
-              let end = 0; // beats: where the previous group's boxes end
+              const leads = groupLeads(bar, metrics.beat);
               return (
                 <div
                   key={bi}
@@ -227,11 +225,8 @@ export function JianpuLines({ lines, metrics, endsScore, current, miss, cursor, 
                 >
                   {bar.groups.map((group, gi) => {
                     // Each note sits in its own time span, so a group starts where its time starts.
-                    const lead = (group[0].start - end) * metrics.beat;
-                    const tail = group[group.length - 1];
-                    end = tail.start + tail.span;
                     return (
-                      <span key={gi} className="j-beam" style={lead > MIN_LEAD ? { marginLeft: lead } : undefined}>
+                      <span key={gi} className="j-beam" style={leads[gi] > 0 ? { marginLeft: leads[gi] } : undefined}>
                         {group.map((g, k) => {
                           // The cursor sits before its event's note or rest (dashes follow it)…
                           const caretBefore = cursor !== undefined && g.event === cursor && g.type !== "dash";

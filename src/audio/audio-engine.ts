@@ -8,7 +8,7 @@ export interface EngineStatus {
   currentId: string | null;
   /** Instrument being loaded, or null when idle. */
   loadingId: string | null;
-  /** Last load failure, cleared on the next successful load. */
+  /** Last load failure, cleared on the next successful load or on going back to the instrument playing. */
   errorId: string | null;
   /** True once the browser lets the AudioContext run (after a user gesture). */
   audioRunning: boolean;
@@ -93,7 +93,11 @@ export class AudioEngine {
   async setInstrument(id: string): Promise<void> {
     const def = findInstrument(id);
     if (!def) throw new Error(`Unknown instrument: ${id}`);
-    if (this.current?.def.id === id && !this.status.loadingId) return;
+    if (this.current?.def.id === id && !this.status.loadingId) {
+      // Back to the instrument still playing after another failed: that failure is no longer the choice.
+      if (this.status.errorId) this.setStatus({ errorId: null });
+      return;
+    }
     const token = ++this.loadToken;
     this.setStatus({ loadingId: id });
 

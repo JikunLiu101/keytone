@@ -5,7 +5,7 @@ import { codeLabel } from "../core/keymap";
 import { attachKeyboardInput, isTyping } from "../input/keyboard-input";
 import { backspaceHold, sendScoreCommand, songSwitch, type ScoreCommand } from "../app/commands";
 import { SCORE_VIEWS } from "../app/settings";
-import { stepInstrument } from "../audio/instruments";
+import { shownInstrumentId, stepInstrument } from "../audio/instruments";
 import { RESTART_HOLD_MS } from "../core/shortcuts";
 import { listScores } from "../score/library";
 import { HoldRing } from "./HoldRing";
@@ -176,7 +176,8 @@ export function App() {
         }
         case "BracketLeft":
         case "BracketRight": {
-          const next = stepInstrument(s.instrumentId, e.code === "BracketLeft" ? -1 : 1);
+          // From the instrument shown (still the old one after a failed load).
+          const next = stepInstrument(shownInstrumentId(engine.getStatus(), s.instrumentId), e.code === "BracketLeft" ? -1 : 1);
           engine.unlock();
           settings.set({ instrumentId: next.id });
           showToast(t(next.nameKey));
@@ -290,7 +291,8 @@ export function App() {
           {" · "}
           {t("hint.mouse")}
         </p>
-        <ToastHost />
+        {/* The editor shows toasts inside itself. */}
+        {dialog !== "editor" && <ToastHost />}
       </main>
 
       <div className="rotate-prompt" role="alert">

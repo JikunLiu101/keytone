@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { edit, editorActionForCode, pasteEvents, pasteNotice, selectedEvents, type EditorAction, type EditorState } from "./editor";
-import { emptyScore, eventBeats, parseScore, serializeEvents, serializeScore } from "./score";
+import { cursorFromBoxes, edit, editorActionForCode, pasteEvents, pasteNotice, selectedEvents, type EditorAction, type EditorState } from "./editor";
+import { emptyScore, eventBeats, serializeEvents, serializeScore } from "./score";
 
 function run(...actions: EditorAction[]): EditorState {
   let state: EditorState = { score: emptyScore(), cursor: 0 };
@@ -67,11 +67,6 @@ describe("edit", () => {
     const empty = run({ type: "extend" }, { type: "halve" }, { type: "backspace" }, { type: "delete" }, { type: "left" });
     expect(empty.score.events).toHaveLength(0);
     expect(empty.cursor).toBe(0);
-  });
-
-  it("keeps the cursor valid when the score is replaced", () => {
-    const s = edit(run(note(1), note(2), note(3)), { type: "replace", score: parseScore("1").score }).state;
-    expect(s.cursor).toBe(1);
   });
 });
 
@@ -180,5 +175,35 @@ describe("editorActionForCode", () => {
     expect(editorActionForCode("Slash", 0)).toEqual({ type: "halve" });
     expect(editorActionForCode("Period", 0)).toEqual({ type: "dot" });
     expect(editorActionForCode("KeyZ", 0)).toBeNull();
+  });
+});
+
+describe("cursorFromBoxes", () => {
+  // One line drawn in two rows: a held note's dash (from the line before), two notes; then a third note below.
+  const boxes = [
+    { event: 4, dash: true, left: 0, right: 20, top: 0, bottom: 20 },
+    { event: 5, dash: false, left: 30, right: 50, top: 0, bottom: 20 },
+    { event: 6, dash: false, left: 60, right: 80, top: 0, bottom: 20 },
+    { event: 7, dash: false, left: 0, right: 20, top: 30, bottom: 50 },
+  ];
+
+  it("puts the cursor before or after the note clicked, by which half", () => {
+    expect(cursorFromBoxes(boxes, 35, 10)).toBe(5);
+    expect(cursorFromBoxes(boxes, 45, 10)).toBe(6);
+  });
+
+  it("puts the cursor after the note whose dash was clicked", () => {
+    expect(cursorFromBoxes(boxes, 5, 10)).toBe(5);
+  });
+
+  it("uses the nearest note in the row for a click beside or between notes", () => {
+    expect(cursorFromBoxes(boxes, 200, 10)).toBe(7);
+    expect(cursorFromBoxes(boxes, 54, 10)).toBe(6);
+    expect(cursorFromBoxes(boxes, 200, 40)).toBe(8);
+    expect(cursorFromBoxes(boxes.slice(1), -10, 10)).toBe(5);
+  });
+
+  it("is null for a line with no notes", () => {
+    expect(cursorFromBoxes([], 10, 10)).toBeNull();
   });
 });

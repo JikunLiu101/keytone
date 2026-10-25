@@ -12,6 +12,15 @@ export function isTyping(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement && TEXT_INPUT_TYPES.has(target.type);
 }
 
+/**
+ * True for a key press an input method is handling: while composing, and in
+ * Safari the key that ends a composition (an Esc cancelling it arrives after
+ * compositionend, with keyCode 229).
+ */
+export function fromInputMethod(e: Pick<KeyboardEvent, "isComposing" | "keyCode">): boolean {
+  return e.isComposing || e.keyCode === 229;
+}
+
 export interface KeyboardInputOptions {
   /** Called on every key press, so audio can be unlocked by the gesture. */
   onGesture: () => void;

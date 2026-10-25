@@ -106,6 +106,11 @@ export function emptyScore(title = ""): Score {
   return { title, key: "C", time: "4/4", tempo: 100, pickup: 0, events: [], lyrics: "" };
 }
 
+/** No notes and no lyrics: nothing worth importing. Lyrics alone count, since they may come before the notes (spec §11.3). */
+export function isEmptyScore(score: Score): boolean {
+  return !score.events.length && !score.lyrics.trim();
+}
+
 /** Length of one event in beats. */
 export function eventBeats(e: ScoreEvent): number {
   const base = 1 / 2 ** e.halvings;

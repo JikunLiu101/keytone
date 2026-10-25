@@ -9,15 +9,17 @@ const LANG_ATTR: Record<Language, string> = { en: "en", zh: "zh-CN" };
  * A label in both languages, stacked in one box with only the current one
  * shown, so the box is as wide and tall as the larger of the two whatever the
  * fonts. Controls built from these keep their place and size when the
- * language changes (spec §12.5). Pass a message key, or the two texts.
+ * language changes (spec §12.5). Pass a message key, or the two texts, and
+ * `textLang` when a text is written in another language than the one it is
+ * shown for (the language toggle names the other language).
  */
-export function Both(props: { k: MessageKey } | { en: string; zh: string }) {
+export function Both(props: ({ k: MessageKey } | { en: string; zh: string }) & { textLang?: Partial<Record<Language, Language>> }) {
   const language = useSyncExternalStore(settings.subscribe, () => settings.get().language);
   const text = (l: Language) => ("k" in props ? MESSAGES[l][props.k] : props[l]);
   return (
     <span className="both">
       {LANGUAGES.map((l) => (
-        <span key={l} lang={LANG_ATTR[l]} className={l === language ? undefined : "both-off"} aria-hidden={l === language ? undefined : true}>
+        <span key={l} lang={LANG_ATTR[props.textLang?.[l] ?? l]} className={l === language ? undefined : "both-off"} aria-hidden={l === language ? undefined : true}>
           {text(l)}
         </span>
       ))}

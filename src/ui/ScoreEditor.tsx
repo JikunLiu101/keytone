@@ -3,10 +3,11 @@ import { engine, hub, settings } from "../app/services";
 import { createAuditioner } from "../core/audition";
 import { OCTAVE_ACTION_SHIFT, actionForCode, codeLabel } from "../core/keymap";
 import { MAX_OCTAVE_SHIFT } from "../core/notes";
-import { isTyping } from "../input/keyboard-input";
+import { fromInputMethod, isTyping } from "../input/keyboard-input";
 import { useSettings, useT } from "../i18n/useT";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
 import {
+  cursorFromBoxes,
   edit,
   editorActionForCode,
   pasteEvents,
@@ -18,7 +19,7 @@ import {
   type EditorState,
 } from "../score/editor";
 import { createHistory } from "../score/history";
-import { layoutLines, sameSheetBox, sheetMetrics, type SheetBox, type Slot } from "../score/jianpu-layout";
+import { fitBeats, layoutLines, sameSheetBox, sheetMetrics, type SheetBox, type Slot } from "../score/jianpu-layout";
 import {
   addScore,
   duplicateScore,
@@ -28,7 +29,7 @@ import {
   untitled,
   updateScoreData,
 } from "../score/library";
-import { buildLyrics, itemAt } from "../score/lyrics";
+import { buildLyrics, changeEnd, itemIndexAt, leftoverWords } from "../score/lyrics";
 import {
   KEY_NAMES,
   TEMPO_MAX,
@@ -36,6 +37,7 @@ import {
   TIME_SIGNATURES,
   barBeats,
   emptyScore,
+  isEmptyScore,
   parseScore,
   readTempo,
   serializeEvents,
@@ -47,7 +49,7 @@ import {
 } from "../score/score";
 import { CloseIcon } from "./icons";
 import { Select } from "./Select";
-import { showToast } from "./Toast";
+import { ToastHost, showToast } from "./Toast";
 import { JianpuLines, keyLabel } from "./JianpuView";
 import { MelodyText } from "./MelodyText";
 import { useCurrentScore, useMeasureSheet } from "./ScoreSheet";
@@ -87,18 +89,22 @@ function historyGroup(action: EditorAction): string | undefined {
   }
 }
 
+/** Moving the cursor and selecting: allowed on built-in scores too, so their notes can be copied. */
+const NAVIGATION: ReadonlySet<EditorAction["type"]> = new Set(["left", "right", "home", "end", "moveTo", "select"]);
+
 /**
- * The cursor position for a click on a note's token or glyph: before it on
- * its left half, after it on its right half. A `-` belongs to its note, so a
- * click on one puts the cursor after the note (spec §11.4).
+ * The cursor position for a click on a line of the sheet or the melody text:
+ * at the nearest note, before it on its left half, after it on its right half
+ * (a click on a `-` goes after its note). Null outside the lines (spec §11.4).
  */
-function pickCursor(target: EventTarget | null, clientX: number): number | null {
-  const el = target instanceof Element ? target.closest<HTMLElement>("[data-event]") : null;
-  if (!el) return null;
-  const event = Number(el.dataset.event);
-  if (el.dataset.dash !== undefined) return event + 1;
-  const box = el.getBoundingClientRect();
-  return clientX < box.left + box.width / 2 ? event : event + 1;
+function pickCursor(target: EventTarget | null, clientX: number, clientY: number): number | null {
+  const line = target instanceof Element ? target.closest(".j-line, .mt-line") : null;
+  if (!line) return null;
+  const boxes = Array.from(line.querySelectorAll<HTMLElement>("[data-event]"), (el) => {
+    const r = el.getBoundingClientRect();
+    return { event: Number(el.dataset.event), dash: el.dataset.dash !== undefined, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  });
+  return cursorFromBoxes(boxes, clientX, clientY);
 }
 
 /**
@@ -171,11 +177,14 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     setState(next);
   };
 
+  // Where the lyrics box puts its cursor after undo or redo changed the lyrics.
+  const lyricsCaretAfterUndo = useRef<number | null>(null);
   const undo = (redo = false) => {
     if (readOnly) return;
     const current = stateRef.current;
     const back = redo ? history.redo(current) : history.undo(current);
     if (!back) return;
+    if (back.score.lyrics !== current.score.lyrics) lyricsCaretAfterUndo.current = changeEnd(current.score.lyrics, back.score.lyrics);
     setState(back);
     persist(back.score);
   };
@@ -197,9 +206,12 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   // Each entered note sounds, even the same note twice in a row.
   const audition = useMemo(() => createAuditioner(hub, () => settings.get().velocity, AUDITION_MS), []);
 
-  /** Apply an edit; returns what happened, or null when the score is read-only. */
+  /** Apply an edit; returns what happened, or null (after saying why) when a read-only score would change. */
   const apply = (action: EditorAction): EditResult | null => {
-    if (readOnly) return null;
+    if (readOnly && !NAVIGATION.has(action.type)) {
+      flash(t("editor.cantSaveBuiltin"));
+      return null;
+    }
     const current = stateRef.current;
     const result = edit(current, action);
     if (result.rejected) flash(t("editor.outOfRange"));
@@ -226,7 +238,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     };
     const onDown = (e: KeyboardEvent) => {
       // Keys that pick a character in an input method (Esc cancels it) are the input method's.
-      if (e.isComposing) return;
+      if (fromInputMethod(e)) return;
       const mod = e.ctrlKey || e.metaKey;
       // Ctrl/⌘+S saves (even from a text field) instead of saving the web page.
       if (mod && e.code === "KeyS") {
@@ -309,9 +321,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         return;
       }
       const notice = pasteNotice(applyRef.current({ type: "insert", events }), errors);
-      // An out-of-range paste already said so; never claim a paste that didn't happen.
-      if (notice === "readOnly") flash(t("editor.cantSaveBuiltin"));
-      else if (notice === "skipped") {
+      // An out-of-range or read-only paste already said so; never claim a paste that didn't happen.
+      if (notice === "skipped") {
         const [first] = errors;
         flash(`${t("editor.pasteSkipped")} ${t(`parse.${first.code}`).replace("{x}", first.detail ?? "")}`);
       }
@@ -367,9 +378,10 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
         return;
       }
     }
-    if (readOnly) return;
-    const at = pickCursor(e.target, e.clientX) ?? (e.target === e.currentTarget ? stateRef.current.score.events.length : null);
-    if (at === null) return;
+    // The pane's own scroll bar scrolls; it doesn't move the cursor.
+    if (e.target === e.currentTarget && e.nativeEvent.offsetX > e.currentTarget.clientWidth) return;
+    // Below the last line: the end of the score.
+    const at = pickCursor(e.target, e.clientX, e.clientY) ?? stateRef.current.score.events.length;
     e.preventDefault();
     (focus ?? rootRef.current)?.focus({ preventScroll: true });
     apply({ type: e.shiftKey ? "select" : "moveTo", cursor: at });
@@ -377,26 +389,28 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   };
   const onPanePointerMove = (e: ReactPointerEvent<HTMLElement>) => {
     if (!dragging.current || !(e.buttons & 1)) return;
-    const at = pickCursor(e.target, e.clientX);
+    const at = pickCursor(e.target, e.clientX, e.clientY);
     if (at !== null && at !== stateRef.current.cursor) apply({ type: "select", cursor: at });
   };
 
   // Layout: all lines, scrolling, laid out like the sheet on the glass (spec §11.2).
   const [box, setBox] = useState<SheetBox>({ width: 0, linesPerPage: 1 });
+  // N beats a line, fewer when the sheet is too narrow for readable digits.
+  const beats = fitBeats(Math.max(0, box.width - 2), beatsPerLine, barBeats(state.score.time));
   const metrics = useMemo(
-    () => sheetMetrics(Math.max(0, box.width - 2), beatsPerLine, barBeats(state.score.time)),
-    [box.width, beatsPerLine, state.score.time],
+    () => sheetMetrics(Math.max(0, box.width - 2), beats, barBeats(state.score.time)),
+    [box.width, beats, state.score.time],
   );
   // The editor always shows the lyrics, whatever the switch on the panel says.
   const lyrics = useMemo(() => buildLyrics(state.score), [state.score]);
   useMeasureSheet(bodyRef, (next) => setBox((prev) => sameSheetBox(prev, next)), [scoreKeyHints, metrics.font, !!lyrics]);
   const { events, time, pickup, key } = state.score;
-  const lines = useMemo(() => layoutLines(state.score, beatsPerLine), [events, time, pickup, key, beatsPerLine]);
+  const lines = useMemo(() => layoutLines(state.score, beats), [events, time, pickup, key, beats]);
   const selection = selectionRange(state);
   // The note the lyric under the text cursor falls on (spec §11.4).
   const highlight: Slot | null = useMemo(() => {
     if (lyricCaret === null || !lyrics) return null;
-    const index = itemAt(lyrics.items, lyricCaret);
+    const index = itemIndexAt(lyrics.items, lyricCaret);
     return lyrics.slots[index] ?? null;
   }, [lyricCaret, lyrics]);
   const onLyrics = (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -405,6 +419,15 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     setLyricCaret(e.target.selectionStart);
   };
   const trackCaret = (e: { currentTarget: HTMLTextAreaElement }) => setLyricCaret(e.currentTarget.selectionStart);
+  // Undo and redo put the lyrics cursor where the change was; replacing the text would put it at the end.
+  useLayoutEffect(() => {
+    const at = lyricsCaretAfterUndo.current;
+    const box = lyricsRef.current;
+    lyricsCaretAfterUndo.current = null;
+    if (at === null || !box) return;
+    box.setSelectionRange(at, at);
+    if (document.activeElement === box) setLyricCaret(at);
+  }, [state.score.lyrics]);
 
   // Keep the cursor in view on both sides: the melody cursor, or while the
   // lyrics box has the cursor, the note its lyric falls on.
@@ -444,7 +467,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     if (!file) return;
     const raw = await file.text();
     const { score, errors } = parseScore(raw);
-    if (!score.events.length) {
+    if (isEmptyScore(score)) {
       flash(t("editor.importFailed"));
       return;
     }
@@ -616,7 +639,7 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
             lines={lines}
             metrics={metrics}
             endsScore
-            cursor={readOnly || editingLyrics ? undefined : state.cursor}
+            cursor={editingLyrics ? undefined : state.cursor}
             eventCount={state.score.events.length}
             selection={selection}
             highlight={highlight}
@@ -654,9 +677,9 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
           <section className={`editor-pane editor-pane--lyrics${lyricsOpen ? "" : " editor-pane--closed"}`}>
             <div className="editor-pane-head">
               <h3 className="control-label">{t("editor.lyrics")}</h3>
-              {!!lyrics?.extra.length && (
+              {lyrics && leftoverWords(lyrics).length > 0 && (
                 <span className="editor-lyrics-extra" role="status">
-                  {t("editor.lyricsExtra").replace("{n}", String(lyrics.extra.length))}
+                  {t("editor.lyricsExtra").replace("{n}", String(leftoverWords(lyrics).length))}
                 </span>
               )}
               <button className="button button--ghost editor-pane-toggle" onClick={() => setLyricsOpen(!lyricsOpen)} aria-expanded={lyricsOpen}>
@@ -681,6 +704,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
             )}
           </section>
         </div>
+        {/* Toasts sit over the top of the sheet here, clear of the header's buttons. */}
+        <ToastHost />
       </div>
 
       <footer className="editor-foot">
