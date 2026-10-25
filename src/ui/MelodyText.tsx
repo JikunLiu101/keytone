@@ -36,7 +36,8 @@ export function MelodyText({ score, lines, cursor, selection, highlight, label, 
           {line.bars.map((bar, bi) => (
             <span key={bi}>
               <span className="mt-bar">
-                {bar.groups.flat().map((g, k) => {
+                {/* The rests that fill out the pickup bar are only drawn on the sheet. */}
+                {bar.groups.flat().filter((g) => g.event >= 0).map((g, k) => {
                   const dash = g.type === "dash";
                   const selected = !!selection && g.event >= selection[0] && g.event < selection[1];
                   const linked = !!highlight && !!g.slot && g.slot.event === highlight.event && g.slot.ext === highlight.ext;

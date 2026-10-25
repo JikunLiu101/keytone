@@ -105,7 +105,8 @@ function GlyphView({ glyph, width, practice, selected, linked, caretBefore, care
     <span
       className={`j-glyph j-glyph--${glyph.type}${practice ? ` j-glyph--${practice}` : ""}${selected ? " j-glyph--selected" : ""}${linked ? " j-glyph--linked" : ""}`}
       style={{ width }}
-      data-event={glyph.event}
+      // The rests filling out the pickup bar are no event, so clicks on them place no cursor.
+      data-event={glyph.event >= 0 ? glyph.event : undefined}
       data-dash={glyph.type === "dash" || undefined}
     >
       {caretBefore && <i className="j-caret j-caret--before" />}

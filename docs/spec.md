@@ -423,7 +423,7 @@ Replaces the note-width layout of §10.1, on the sheet and in the editor.
 - A line holds N beats. N is a setting in the control panel's score row, default 16, saved with the other settings. The builder picks the control and its range.
 - Beat width is the line width divided by N, leaving room for the bar-line gaps. Bar lines take a narrow fixed gap, not a beat. Every line of a score uses the same beat width.
 - A line holds whole bars only, as many as fit in N beats: 4 bars of 4/4, 5 bars of 3/4, 8 bars of 2/4. Beats left over stay blank at the right end. Lines are never stretched, and a bar is never split across lines. A line always holds at least one bar.
-- A pickup bar is drawn at its real length (for example 1 beat wide) and counts its real beats on the first line.
+- A pickup bar is drawn as wide as a full bar, with `0` filling the beats before the pickup, so the bar lines on the first line line up with the lines below. These rests are only drawn: they are not in the melody text and don't play.
 - Each note sits centred in its own time span, capped at one beat: a quarter note in the middle of its beat, two eighths in the two halves, four sixteenths in the four quarters. A note longer than a beat (for example a dotted quarter) sits in its first beat, followed by its dot. Each `-` fills one beat. A rest sits like a note of the same length.
 - One digit size for the whole sheet, small enough that four sixteenth notes fit in one beat. All digits of a score look the same; a beat with a single note looks roomy.
 - Underlines, octave dots, accidentals and augmentation dots are drawn as now. Underlines still join within a beat.

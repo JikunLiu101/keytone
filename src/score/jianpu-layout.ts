@@ -17,7 +17,7 @@ export interface Slot {
 
 export interface Glyph {
   type: "note" | "rest" | "dash";
-  /** Index of the score event this glyph belongs to. */
+  /** Index of the score event this glyph belongs to; −1 for a rest that only fills out the pickup bar. */
   event: number;
   /** Pitches drawn (empty for rests and dashes). */
   pitches: Pitch[];
@@ -37,7 +37,7 @@ export interface Glyph {
 export interface Bar {
   /** Glyphs grouped so the underlines of notes within one beat join up. */
   groups: Glyph[][];
-  /** Beats the bar is wide: the pickup's length for a pickup bar, else a full bar. */
+  /** Beats the bar is wide: a full bar, the pickup bar too. */
   beats: number;
 }
 
@@ -53,7 +53,9 @@ export function layoutBars(score: Score): Bar[] {
   const bars: Bar[] = [];
   let groups: Glyph[][] = [];
   let pos = 0; // beats since the start of the current bar
-  let length = score.pickup > 0 ? score.pickup : barLength;
+  // The pickup bar is as wide as any other, so the bar lines on its line match
+  // the lines below (spec §11.2). A pickup longer than a bar keeps its length.
+  let length = Math.max(barLength, score.pickup);
   let beamBeat = -1; // the beat the last open beam group started in
 
   const place = (glyph: Omit<Glyph, "start">, beats: number) => {
@@ -75,6 +77,20 @@ export function layoutBars(score: Score): Bar[] {
       beamBeat = -1;
     }
   };
+
+  // The beats before the pickup are drawn as rests (whole beats, then a half
+  // and a quarter for a pickup that starts mid-beat). They are not in the
+  // melody, so they belong to no event.
+  if (score.pickup > 0 && score.events.length) {
+    let missing = length - score.pickup;
+    for (const [beats, halvings] of [[1, 0], [0.5, 1], [0.25, 2]] as const) {
+      while (missing >= beats - EPS) {
+        place({ type: "rest", event: -1, pitches: [], midi: [], underlines: halvings, dotted: false, span: beats, slot: null }, beats);
+        missing -= beats;
+      }
+    }
+    pos += Math.max(0, missing);
+  }
 
   score.events.forEach((e, index) => {
     const midi = e.pitches.map((p) => pitchMidi(p, score.key));
@@ -186,7 +202,7 @@ const GAP_BEATS = 0.4;
 
 /**
  * Sizes for a sheet `width` px wide holding N beats a line. Room is left for
- * one gap per bar plus one (a pickup bar). Digits are small enough that four
+ * one gap per bar plus one. Digits are small enough that four
  * sixteenth notes fit in a beat, within 11–24 px.
  */
 export function sheetMetrics(width: number, beatsPerLine: number, barLength: number): SheetMetrics {

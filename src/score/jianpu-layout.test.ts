@@ -14,9 +14,32 @@ describe("layoutBars", () => {
     expect(bars[1].groups.flat().map((g) => g.type)).toEqual(["note", "dash", "dash", "dash"]);
   });
 
-  it("honours the pickup", () => {
+  it("draws the pickup as a whole bar, its missing beats filled with rests that belong to no event", () => {
     const bars = layoutBars(body("5 1 2 3", "time: 3/4\npickup: 1\n"));
-    expect(bars.map((b) => b.groups.flat().length)).toEqual([1, 3]);
+    expect(bars[0].groups.flat().map((g) => [g.type, g.event, g.start, g.slot])).toEqual([
+      ["rest", -1, 0, null],
+      ["rest", -1, 1, null],
+      ["note", 0, 2, { event: 0, ext: 0 }],
+    ]);
+    expect(bars[1].groups.flat().map((g) => g.event)).toEqual([1, 2, 3]);
+  });
+
+  it("fills a pickup that starts mid-beat with a shorter rest, beamed with the pickup's first note", () => {
+    const bars = layoutBars(body("5/ 1 2 3 4", "time: 4/4\npickup: 0.5\n"));
+    expect(bars[0].groups.map((group) => group.map((g) => [g.type, g.start, g.span, g.underlines]))).toEqual([
+      [["rest", 0, 1, 0]],
+      [["rest", 1, 1, 0]],
+      [["rest", 2, 1, 0]],
+      [
+        ["rest", 3, 0.5, 1],
+        ["note", 3.5, 0.5, 1],
+      ],
+    ]);
+  });
+
+  it("adds no rests to a pickup as long as a bar, nor to an empty score", () => {
+    expect(layoutBars(body("1 2 3", "time: 3/4\npickup: 3\n"))[0].groups.flat().map((g) => g.event)).toEqual([0, 1, 2]);
+    expect(layoutBars(body("", "time: 3/4\npickup: 1\n"))).toEqual([]);
   });
 
   it("joins underlines of notes within one beat", () => {
@@ -64,9 +87,9 @@ describe("layoutBars", () => {
     expect(glyphs.map((g) => g.slot)).toEqual([{ event: 0, ext: 0 }, { event: 0, ext: 1 }, null, null, { event: 2, ext: 0 }]);
   });
 
-  it("sizes the pickup bar by its length and every other bar by the time signature", () => {
+  it("sizes every bar by the time signature, the pickup bar too", () => {
     const bars = layoutBars(body("5 1 2 3 4", "time: 3/4\npickup: 1\n"));
-    expect(bars.map((b) => b.beats)).toEqual([1, 3, 3]);
+    expect(bars.map((b) => b.beats)).toEqual([3, 3, 3]);
   });
 });
 
@@ -78,8 +101,12 @@ describe("layoutLines", () => {
     expect(layoutLines(ten, 16).map((l) => l.bars.length)).toEqual([5, 5]);
   });
 
-  it("counts the pickup at its real length", () => {
-    expect(layoutLines(birthday, 16).map((l) => l.bars.length)).toEqual([6, 3]);
+  it("lines up the bars of the pickup's line with the lines below", () => {
+    const lines = layoutLines(birthday, 16);
+    expect(lines.map((l) => l.bars.length)).toEqual([5, 4]);
+    const m = sheetMetrics(900, 16, 3);
+    const [first, second] = lines.map((l) => placeLine(l, m).bars.map((b) => b.x));
+    expect(first.slice(0, second.length)).toEqual(second);
   });
 
   it("gives a bar wider than the line a line of its own", () => {
