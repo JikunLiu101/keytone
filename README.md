@@ -16,6 +16,7 @@ Play an electronic keyboard with your computer keyboard, right in the browser. N
 - Practice mode: the score waits for the right note. Without it, falling notes keep time and count perfect / missing
 - A score editor with the sheet on the left and the melody and lyrics as text on the right: type notes with the digit keys, select, copy and paste notes, undo, keep your scores in the browser, import and export them as text
 - Play with the computer keyboard, click and drag on the on-screen keys, or use touch (multi-finger)
+- A register (C2–C5, C4 by default) that moves the keys and the jianpu `1` together: ▼ ▲ beside the keyboard's display, or `9` / `0`. Each score keeps its own
 - Hold-to-shift octave keys and a sustain pedal, all rebindable
 - Volume, velocity (shown as dynamics, pp to fff), reverb and light-bar controls
 - English and Chinese UI that keeps every control in place when you switch; settings are remembered in your browser
@@ -36,12 +37,13 @@ Then open http://localhost:5173.
 
 | Keys | Notes |
 |---|---|
-| `Z X C V B N M` | C D E F G A B (C3–B3) |
+| `Z X C V B N M` | C D E F G A B (C4–B4 at the default register) |
 | `S D G H J` | C# D# F# G# A# |
-| `, . /` and `L ;` | C4 D4 E4 and C#4 D#4 |
+| `, . /` and `L ;` | C5 D5 E5 and C#5 D#5 |
 | Hold `Left Shift` / `Right Shift` | −1 / +1 octave |
 | Hold `A` / `'` | −2 / +2 octaves |
 | Hold `Space` | Sustain pedal |
+| `9` / `0` | Register down / up (also ▼ ▲ beside the display); with a score up, it is kept with that score |
 
 Octave and sustain keys can be changed under **Keys**, which also lists the fixed shortcuts (press `F1`): Backspace to go back a phrase in practice (hold to start over), Tab / Shift+Tab for the next / previous score, Enter to play falling notes, and more.
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { hub, settings } from "../app/services";
+import { baseShift, hub, settings } from "../app/services";
 import { useSettings } from "../i18n/useT";
 import { EffectsRenderer, type AnchorSet } from "../view/effects-renderer";
 import type { KeyboardLayout } from "../view/layout";
@@ -43,7 +43,20 @@ export function GlassEffects({ layout }: { layout: KeyboardLayout }) {
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
-    const off = hub.onKey((e) => (e.type === "down" ? renderer.keyDown(e.midi) : renderer.keyUp(e.midi)));
+    // The bars work in written pitches, so a bar rises over the key it was
+    // played on, in that place's colour, whatever the base (spec §13.2). A note
+    // lets go as the pitch it went down as, even if the base changed meanwhile.
+    const written = new Map<number, number>();
+    const off = hub.onKey((e) => {
+      if (e.type === "down") {
+        const w = e.midi - baseShift();
+        written.set(e.midi, w);
+        renderer.keyDown(w);
+      } else {
+        renderer.keyUp(written.get(e.midi) ?? e.midi - baseShift());
+        written.delete(e.midi);
+      }
+    });
     return () => {
       off();
       observer.disconnect();

@@ -1,12 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
-import { hub, scorePage } from "../app/services";
+import { baseShift, hub, scorePage } from "../app/services";
 import { useSettings, useT } from "../i18n/useT";
 import { fitBeats, layoutLines, layoutPages, pageOfEvent, sameSheetBox, sheetMetrics, type SheetBox } from "../score/jianpu-layout";
 import { PRACTICE_START, isComplete, phraseStarts, practicePress, practiceSteps, practiceTarget } from "../score/practice";
 import { onScoreCommand } from "../app/commands";
 import { resolveScore, userScores } from "../score/library";
 import { buildLyrics } from "../score/lyrics";
-import { barBeats } from "../score/score";
+import { barBeats, sameMusic, type Score } from "../score/score";
 import { JianpuLines, ScoreMeta } from "./JianpuView";
 
 /** Phones: a beat is at least this wide, so digits stay readable. */
@@ -33,6 +33,16 @@ export function useMeasureSheet(body: RefObject<HTMLElement | null>, onBox: (box
     observer.observe(el);
     return () => observer.disconnect();
   }, [body, ...deps]);
+}
+
+/**
+ * `score`, or the one before it while only its base octave changed, so a
+ * register change doesn't restart practice or falling notes (spec §13.2).
+ */
+export function useStableScore(score: Score): Score {
+  const ref = useRef(score);
+  if (!sameMusic(ref.current, score)) ref.current = score;
+  return ref.current;
 }
 
 /** The current score, re-read when the user's library changes. */
@@ -81,7 +91,8 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   useEffect(() => scorePage.set({ page: 0, count: pageCount }), [resolved.id, pageCount]);
 
   // ---- Practice mode ----
-  const steps = useMemo(() => practiceSteps(score), [score]);
+  const music = useStableScore(score);
+  const steps = useMemo(() => practiceSteps(music), [music]);
   const [progress, setProgressState] = useState(PRACTICE_START);
   // Key events read the latest progress here, so quick notes are never lost.
   const progressRef = useRef(progress);
@@ -102,7 +113,8 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
     return hub.onKey((e) => {
       if (e.type !== "down") return;
       const p = progressRef.current;
-      const next = practicePress(steps, p, e.midi);
+      // Steps are in written pitches; the key played sounds at the base that applies (spec §13.2).
+      const next = practicePress(steps, p, e.midi - baseShift());
       if (next === p) return;
       setProgress(next);
       setMiss(next.misses !== p.misses);
@@ -110,7 +122,7 @@ export function ScoreSheet({ compact = false }: { compact?: boolean }) {
   }, [practice, steps]);
   // Shortcuts: Backspace (phrase back), held Backspace (restart), ← / → (one
   // note), and Enter to play again once complete.
-  const starts = useMemo(() => phraseStarts(score, steps), [score, steps]);
+  const starts = useMemo(() => phraseStarts(music, steps), [music, steps]);
   useEffect(() => {
     if (!practice) return;
     return onScoreCommand((command) => {

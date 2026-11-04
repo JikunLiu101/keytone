@@ -1,5 +1,5 @@
 import { useRef, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react";
-import { hub, keyboardWindow } from "../app/services";
+import { baseOctave, baseShift, hub, keyboardWindow } from "../app/services";
 import { useT } from "../i18n/useT";
 import type { KeyboardLayout } from "../view/layout";
 import { clampScroll, scrollForPointer } from "../view/viewport";
@@ -13,6 +13,9 @@ export function KeyboardNav({ layout }: { layout: KeyboardLayout }) {
   const t = useT();
   const win = useSyncExternalStore(keyboardWindow.subscribe, keyboardWindow.get);
   const sounding = useSyncExternalStore(hub.subscribe, hub.getSounding);
+  // The strip is drawn in written pitches; sounding notes are lifted by the base (spec §13.2).
+  useSyncExternalStore(baseOctave.subscribe, baseOctave.get);
+  const shift = baseShift();
   const ref = useRef<HTMLDivElement>(null);
   const dragging = useRef<number | null>(null);
   const total = layout.whiteCount;
@@ -68,7 +71,7 @@ export function KeyboardNav({ layout }: { layout: KeyboardLayout }) {
       {layout.keys.map((key) => (
         <span
           key={key.midi}
-          className={`kb-nav-key ${key.black ? "kb-nav-key--black" : ""} ${sounding.has(key.midi) ? "kb-nav-key--on" : ""}`}
+          className={`kb-nav-key ${key.black ? "kb-nav-key--black" : ""} ${sounding.has(key.midi + shift) ? "kb-nav-key--on" : ""}`}
           style={{ left: `${(key.x / total) * 100}%`, width: `${(key.width / total) * 100}%` }}
         />
       ))}

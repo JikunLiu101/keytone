@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUILTIN_SCORES } from "./builtin-scores";
-import { barBeats, emptyScore, eventBeats, isEmptyScore, parseScore, pitchMidi, readTempo, scoreBeats, serializeScore, settleTempo } from "./score";
+import { barBeats, emptyScore, eventBeats, isEmptyScore, parseScore, sameMusic, pitchMidi, readTempo, scoreBeats, serializeScore, settleTempo } from "./score";
 
 const body = (notes: string, header = "") => parseScore(`${header}---\n${notes}`);
 
@@ -93,6 +93,39 @@ describe("serializeScore", () => {
     expect(text.endsWith("---\nhap-py --\n")).toBe(true);
     expect(parseScore(text).score).toEqual(withLyrics);
     expect(serializeScore(body("1 2", "title: x\n").score).match(/---/g)).toHaveLength(1);
+  });
+});
+
+describe("a score's own base octave (spec §13.3)", () => {
+  it("reads the octave line, and has none without it", () => {
+    expect(parseScore("octave: 5\n---\n1").score.octave).toBe(5);
+    expect(parseScore("---\n1").score.octave).toBeNull();
+  });
+
+  it("reports an octave outside 2–5 and ignores it", () => {
+    const { score, errors } = parseScore("octave: 7\n---\n1");
+    expect(score.octave).toBeNull();
+    expect(errors.map((e) => e.code)).toContain("badOctave");
+  });
+
+  it("writes the octave line after pickup, and none without an octave", () => {
+    const text = serializeScore({ ...emptyScore("A"), pickup: 1, octave: 5 });
+    expect(text).toContain("pickup: 1\noctave: 5\n");
+    expect(parseScore(text).score.octave).toBe(5);
+    expect(serializeScore({ ...emptyScore("A"), octave: null })).not.toContain("octave:");
+  });
+});
+
+describe("sameMusic", () => {
+  it("is true when only the base octave differs, so practice and falling notes keep their place", () => {
+    const a = parseScore("title: A\n---\n1 2 3").score;
+    expect(sameMusic(a, { ...a, octave: 5 })).toBe(true);
+    expect(sameMusic(a, parseScore("title: A\noctave: 3\n---\n1 2 3").score)).toBe(true);
+  });
+
+  it("is false when the notes change", () => {
+    const a = parseScore("title: A\n---\n1 2 3").score;
+    expect(sameMusic(a, parseScore("title: A\n---\n1 2 4").score)).toBe(false);
   });
 });
 

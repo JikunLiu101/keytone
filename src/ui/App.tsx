@@ -17,6 +17,7 @@ import { KeyboardNav } from "./KeyboardNav";
 import { KeyboardView, layout } from "./KeyboardView";
 import { ScoreEditor } from "./ScoreEditor";
 import { ToastHost, showToast } from "./Toast";
+import { stepRegister } from "./register";
 
 
 type DialogName = "bindings" | "credits" | "editor" | null;
@@ -190,6 +191,11 @@ export function App() {
           showToast(t("toast.volume").replace("{n}", String(Math.round(volume * 100))));
           return;
         }
+        case "Digit9":
+        case "Digit0":
+          e.preventDefault();
+          stepRegister(e.code === "Digit9" ? -1 : 1, t);
+          return;
         case "KeyE":
           if (!keyboardWindow.get().compact) setDialog("editor");
           return;

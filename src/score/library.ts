@@ -156,9 +156,24 @@ export function removeScore(id: string): void {
   parsed.delete(id);
 }
 
-/** Copy any score (built-in or user) into a new user score; returns its id. */
-export function duplicateScore(id: string, language: Language): string {
+/**
+ * A score's text for export. `octave`, when given, becomes its base octave, as
+ * for duplicateScore: a built-in's remembered one lives in the settings.
+ */
+export function exportScore(id: string, language: Language, octave?: number | null): string {
+  const { score, title } = resolveScore(id, language);
+  const named = { ...score, title };
+  return serializeScore(octave === undefined ? named : { ...named, octave });
+}
+
+/**
+ * Copy any score (built-in or user) into a new user score; returns its id.
+ * `octave`, when given, becomes the copy's base octave: a built-in's
+ * remembered one lives in the settings, not in the score (spec §13.3).
+ */
+export function duplicateScore(id: string, language: Language, octave?: number | null): string {
   const { score, title } = resolveScore(id, language);
   const suffix = language === "zh" ? "（副本）" : " (copy)";
-  return addScore(serializeScore({ ...score, title: uniqueTitle(title + suffix, language) }));
+  const copy = { ...score, title: uniqueTitle(title + suffix, language) };
+  return addScore(serializeScore(octave === undefined ? copy : { ...copy, octave }));
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { hub, keyboardWindow } from "../app/services";
+import { baseShift, hub, keyboardWindow } from "../app/services";
 import { onScoreCommand, type ScoreCommand } from "../app/commands";
 import { phraseBackTarget, phraseStarts, practiceSteps } from "../score/practice";
 import { showToast } from "./Toast";
@@ -12,7 +12,7 @@ import type { KeyboardLayout } from "../view/layout";
 import { clampScroll } from "../view/viewport";
 import { ScoreMeta } from "./JianpuView";
 import { Select } from "./Select";
-import { useCurrentScore } from "./ScoreSheet";
+import { useCurrentScore, useStableScore } from "./ScoreSheet";
 
 const SPEEDS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5];
 /** How long the summary stays up before a loop starts again. */
@@ -100,6 +100,8 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
   const t = useT();
   const { practice, lightPalette } = useSettings();
   const resolved = useCurrentScore();
+  // A register change keeps the session going (spec §13.2).
+  const music = useStableScore(resolved.score);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sessionRef = useRef<FallingSession | null>(null);
   const rendererRef = useRef<FallingRenderer | null>(null);
@@ -110,7 +112,7 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
 
   // A new or edited score, or toggling practice, starts a fresh session.
   useEffect(() => {
-    sessionRef.current = new FallingSession(resolved.score, practice, speed);
+    sessionRef.current = new FallingSession(music, practice, speed);
     // Development only: lets tests drive and inspect the session.
     if (import.meta.env.DEV) Object.assign(window, { __keytoneFalling: sessionRef.current });
     rendererRef.current?.redraw();
@@ -118,7 +120,7 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
     viewRef.current = next;
     setView(next);
     // Speed changes are applied to the running session below, not by restarting.
-  }, [resolved.score, practice]);
+  }, [music, practice]);
 
   useEffect(() => {
     if (sessionRef.current) sessionRef.current.speed = speed;
@@ -174,9 +176,11 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
     () =>
       hub.onKey((e) => {
         if (e.type !== "down") return;
-        const result = sessionRef.current?.press(e.midi);
-        if (result?.kind === "hit") rendererRef.current?.burst(e.midi);
-        else if (result?.kind === "wrong") rendererRef.current?.wrong(e.midi);
+        // The session and the renderer work in written pitches (spec §13.2).
+        const written = e.midi - baseShift();
+        const result = sessionRef.current?.press(written);
+        if (result?.kind === "hit") rendererRef.current?.burst(written);
+        else if (result?.kind === "wrong") rendererRef.current?.wrong(written);
       }),
     [],
   );
@@ -212,7 +216,7 @@ export function FallingNotes({ layout, overlay = null }: { layout: KeyboardLayou
   const empty = !session || session.notes.length === 0;
 
   // Shortcuts (see core/shortcuts.ts). Read through a ref so the listener always sees this render.
-  const starts = useMemo(() => phraseStarts(resolved.score, practiceSteps(resolved.score)), [resolved.score]);
+  const starts = useMemo(() => phraseStarts(music, practiceSteps(music)), [music]);
   const commandRef = useRef<(c: ScoreCommand) => void>(() => {});
   commandRef.current = (command) => {
     const s = sessionRef.current;

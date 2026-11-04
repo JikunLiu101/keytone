@@ -5,7 +5,7 @@
  * 6/8 bar holds 3 beats (six eighths written with `/`). Tempo is quarter
  * notes per minute.
  */
-import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
+import { BASE_MIDI, BASE_OCTAVES, RANGE_HIGH, RANGE_LOW } from "../core/notes";
 
 /** Key names allowed in `key:`. Index in this list = semitones above C. */
 export const KEY_NAMES = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"] as const;
@@ -67,6 +67,8 @@ export interface Score {
   tempo: number;
   /** Beats before the first full bar (an upbeat). */
   pickup: number;
+  /** The score's own base octave (spec §13.3); null follows the global one. */
+  octave: number | null;
   events: ScoreEvent[];
   /** One line of lyrics, as typed (spec §11.3); "" when there are none. */
   lyrics: string;
@@ -77,6 +79,7 @@ export type ParseErrorCode =
   | "badTime"
   | "badTempo"
   | "badPickup"
+  | "badOctave"
   | "badHeader"
   | "dashFirst"
   | "unexpected"
@@ -103,7 +106,16 @@ export interface ParseResult {
 }
 
 export function emptyScore(title = ""): Score {
-  return { title, key: "C", time: "4/4", tempo: 100, pickup: 0, events: [], lyrics: "" };
+  return { title, key: "C", time: "4/4", tempo: 100, pickup: 0, octave: null, events: [], lyrics: "" };
+}
+
+/**
+ * True when two scores differ at most in their base octave. Practice and
+ * falling notes work in written pitches, so a register change keeps their
+ * place (spec §13.2).
+ */
+export function sameMusic(a: Score, b: Score): boolean {
+  return a === b || JSON.stringify({ ...a, octave: null }) === JSON.stringify({ ...b, octave: null });
 }
 
 /** No notes and no lyrics: nothing worth importing. Lyrics alone count, since they may come before the notes (spec §11.3). */
@@ -125,7 +137,7 @@ export function barBeats(time: TimeSignature): number {
 
 /** MIDI note of the key's tonic (1) without octave dots: 1=C is C3, the `Z` key. */
 export function tonicMidi(key: KeyName): number {
-  return 48 + KEY_NAMES.indexOf(key);
+  return BASE_MIDI + KEY_NAMES.indexOf(key);
 }
 
 export function pitchMidi(p: Pitch, key: KeyName): number {
@@ -168,6 +180,12 @@ function readHeader(score: Score, name: string, value: string, line: number, err
       const n = Number(value);
       if (Number.isFinite(n) && n >= 0) score.pickup = n;
       else errors.push(error(line, "badPickup", `Bad pickup "${value}"`, value));
+      return;
+    }
+    case "octave": {
+      const n = Number(value);
+      if ((BASE_OCTAVES as readonly number[]).includes(n)) score.octave = n;
+      else errors.push(error(line, "badOctave", `Bad octave "${value}"`, value));
       return;
     }
     default:
@@ -333,6 +351,7 @@ export function serializeEvents(events: ScoreEvent[]): string {
 export function serializeScore(score: Score, barsPerLine = 4): string {
   const header = [`title: ${score.title}`, `key: ${score.key}`, `time: ${score.time}`, `tempo: ${score.tempo}`];
   if (score.pickup > 0) header.push(`pickup: ${score.pickup}`);
+  if (score.octave !== null) header.push(`octave: ${score.octave}`);
   const bar = barBeats(score.time);
   const out: string[] = [];
   let current: string[] = [];

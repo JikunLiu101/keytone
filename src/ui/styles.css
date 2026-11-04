@@ -790,6 +790,67 @@ input[type="range"]:focus-visible::-moz-range-thumb {
   padding: 10px 6px 8px;
 }
 
+/* Left of the LCD: a grille, then the register keys (spec §13.4). */
+.kb-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  height: 100%;
+}
+
+.kb-left > .grille {
+  flex: 1;
+  min-width: 0;
+}
+
+.kb-register {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kb-register-label {
+  margin-right: 4px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.kb-register-key {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #3a3d45, #2c2f36);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: var(--text-dim);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.kb-register-key:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.kb-register-key:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.kb-register-key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Phones have no computer keyboard, and their keyboard body slides sideways. */
+.app[data-compact] .kb-register {
+  display: none;
+}
+
 .grille {
   height: 70%;
   border-radius: 6px;

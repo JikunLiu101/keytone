@@ -4,7 +4,8 @@ import { DEFAULT_BINDINGS, NOTE_KEYS, type BindableAction, type KeyBindings } fr
 import { SHORTCUT_CODES } from "../core/shortcuts";
 import { detectLanguage, type Language } from "../i18n/strings";
 import { PALETTE_IDS, type PaletteId } from "../view/palettes";
-import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
+import { DEFAULT_SCORE_ID, findBuiltin } from "../score/builtin-scores";
+import { BASE_OCTAVES, DEFAULT_BASE_OCTAVE } from "../core/notes";
 
 /** How the current score is shown on the glass. */
 export const SCORE_VIEWS = ["off", "jianpu", "falling"] as const;
@@ -41,7 +42,13 @@ export interface Settings {
   panelCollapsed: boolean;
   /** Version of the default key bindings the stored ones were made with. */
   bindingsRev: number;
+  /** Octave number of the base C with no score shown (spec §13.3). */
+  baseOctave: number;
+  /** Base octaves chosen for built-in scores, which can't keep one themselves: score id → octave. */
+  builtinOctaves: Record<string, number>;
 }
+
+const isBaseOctave = (v: unknown): v is number => (BASE_OCTAVES as readonly unknown[]).includes(v);
 
 /** 2: ±2 octave keys got defaults (A and '). */
 export const BINDINGS_REV = 2;
@@ -52,7 +59,8 @@ export function defaultSettings(language: Language, reducedMotion = false, small
   return {
     instrumentId: DEFAULT_INSTRUMENT_ID,
     volume: 0.8,
-    velocity: 100,
+    // MP, the softer sample layer (68–84); saved velocities are kept (spec §13.5).
+    velocity: 80,
     reverb: true,
     effects: !reducedMotion,
     lightPalette: "aurora",
@@ -67,6 +75,8 @@ export function defaultSettings(language: Language, reducedMotion = false, small
     // Phones start with the panel tucked away so the keys get the room.
     panelCollapsed: smallTouchScreen,
     bindingsRev: BINDINGS_REV,
+    baseOctave: DEFAULT_BASE_OCTAVE,
+    builtinOctaves: {},
   };
 }
 
@@ -146,6 +156,15 @@ export function sanitize(raw: unknown, defaults: Settings): Settings {
     bindings,
     panelCollapsed: typeof r.panelCollapsed === "boolean" ? r.panelCollapsed : defaults.panelCollapsed,
     bindingsRev: BINDINGS_REV,
+    baseOctave: isBaseOctave(r.baseOctave) ? r.baseOctave : defaults.baseOctave,
+    builtinOctaves:
+      r.builtinOctaves && typeof r.builtinOctaves === "object"
+        ? Object.fromEntries(
+            Object.entries(r.builtinOctaves as Record<string, unknown>).filter(
+              (entry): entry is [string, number] => !!findBuiltin(entry[0]) && isBaseOctave(entry[1]),
+            ),
+          )
+        : defaults.builtinOctaves,
   };
 }
 

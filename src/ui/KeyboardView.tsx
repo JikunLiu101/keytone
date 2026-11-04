@@ -1,15 +1,21 @@
 import { memo, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { RANGE_HIGH, RANGE_LOW } from "../core/notes";
+import { BASE_OCTAVES, RANGE_HIGH, RANGE_LOW, noteName, octaveC, playableRange } from "../core/notes";
 import { buildLayout, computerKeyLabels } from "../view/layout";
 import { clampScroll, defaultScroll } from "../view/viewport";
-import { engine, hub, keyboard, keyboardWindow, pointers } from "../app/services";
+import { baseOctave, editorOpen, engine, hub, keyboard, keyboardWindow, pointers } from "../app/services";
 import { findInstrument } from "../audio/instruments";
 import { GlassEffects, useLcdClear } from "./GlassEffects";
 import { ScoreSheet } from "./ScoreSheet";
 import { FallingNotes } from "./FallingNotes";
+import { stepRegister } from "./register";
 import { useSettings, useT } from "../i18n/useT";
 
+/**
+ * The keyboard's shape in written pitches (C1–E6, spec §13.2). The glass, the
+ * falling notes and the phone strip place things with it; every base has the
+ * same C…E shape, so a written pitch sits over the key that plays it.
+ */
 export const layout = buildLayout(RANGE_LOW, RANGE_HIGH);
 
 type KeyGeometry = (typeof layout.keys)[number];
@@ -48,7 +54,16 @@ function midiAt(x: number, y: number): number | null {
 export function KeyboardView() {
   const sounding = useSyncExternalStore(hub.subscribe, hub.getSounding);
   const shift = useSyncExternalStore(keyboard.subscribe, keyboard.getOctaveShift);
-  const labels = useMemo(() => computerKeyLabels(shift), [shift]);
+  const octave = useSyncExternalStore(baseOctave.subscribe, baseOctave.get);
+  // The editor has its own Register field, and covers these keys.
+  const editing = useSyncExternalStore(editorOpen.subscribe, editorOpen.get).open;
+  const base = octaveC(octave);
+  // The keys at the base that applies: what they play, their names and which are lit.
+  const keys = useMemo(() => {
+    const range = playableRange(base);
+    return buildLayout(range.low, range.high);
+  }, [base]);
+  const labels = useMemo(() => computerKeyLabels(shift, base), [shift, base]);
   const sustain = useSyncExternalStore(hub.subscribe, hub.getSustain);
   const status = useSyncExternalStore(engine.subscribe, engine.getStatus);
   const instrument = status.currentId ? findInstrument(status.currentId) : undefined;
@@ -141,21 +156,54 @@ export function KeyboardView() {
           ["--kb-scroll" as string]: win.compact ? win.scroll : 0,
         }}
       >
-        <div className="keyboard-top" aria-hidden="true">
-          <div className="grille" />
-          <div className="lcd">
+        <div className="keyboard-top">
+          <div className="kb-left">
+            <div className="grille" aria-hidden="true" />
+            {/* Like the octave buttons on a hardware MIDI keyboard (spec §13.4). A
+                click doesn't take the focus, so the computer keys keep playing. */}
+            <div className="kb-register" role="group" aria-label={t("kb.register")}>
+              <span className="kb-register-label" aria-hidden="true">
+                {t("kb.register")}
+              </span>
+              <button
+                type="button"
+                className="kb-register-key"
+                aria-label={t("kb.registerDown")}
+                title={`${t("kb.registerDown")} (9)`}
+                disabled={editing || octave <= BASE_OCTAVES[0]}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => stepRegister(-1, t)}
+              >
+                ▼
+              </button>
+              <button
+                type="button"
+                className="kb-register-key"
+                aria-label={t("kb.registerUp")}
+                title={`${t("kb.registerUp")} (0)`}
+                disabled={editing || octave >= BASE_OCTAVES[BASE_OCTAVES.length - 1]}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => stepRegister(1, t)}
+              >
+                ▲
+              </button>
+            </div>
+          </div>
+          <div className="lcd" aria-hidden="true">
             <span className="lcd-main">{instrument ? t(instrument.nameKey) : "—"}</span>
             <span className="lcd-sub">
               {status.loadingId
                 ? t("status.loading")
                 : !status.audioRunning
                   ? t("audio.tapToStart")
-                  : `${t("lcd.octave")} ${shift > 0 ? `+${shift}` : shift}`}
+                  : `${noteName(base)} · ${t("lcd.octave")} ${shift > 0 ? `+${shift}` : shift}`}
               {sustain ? ` · ${t("lcd.sustain")}` : ""}
             </span>
           </div>
-          <span className="logo">KEYTONE</span>
-          <div className="grille" />
+          <span className="logo" aria-hidden="true">
+            KEYTONE
+          </span>
+          <div className="grille" aria-hidden="true" />
         </div>
         <div className="keyboard-felt" aria-hidden="true" />
         <div
@@ -170,7 +218,7 @@ export function KeyboardView() {
           onLostPointerCapture={onPointerEnd}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {layout.keys.map((key) => (
+          {keys.keys.map((key) => (
             <Key key={key.midi} geometry={key} label={labels.get(key.midi)} down={sounding.has(key.midi)} />
           ))}
         </div>

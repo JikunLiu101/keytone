@@ -6,13 +6,15 @@ import {
   type BindableAction,
   type KeyBindings,
 } from "./keymap";
-import { BASE_MIDI, MAX_OCTAVE_SHIFT, RANGE_HIGH, RANGE_LOW } from "./notes";
+import { MAX_OCTAVE_SHIFT, playableRange } from "./notes";
 
 type OctaveAction = Exclude<BindableAction, "sustain">;
 
 export interface KeyboardControllerOptions {
   getBindings: () => KeyBindings;
   getVelocity: () => number;
+  /** MIDI note of the base C that unshifted `Z` plays, read at each key press (spec §13.2). */
+  getBase: () => number;
 }
 
 /**
@@ -60,8 +62,10 @@ export class KeyboardController {
     if (semitone === undefined) return false;
     if (repeat || this.heldNotes.has(code)) return true;
 
-    const midi = BASE_MIDI + 12 * this.shift + semitone;
-    if (midi < RANGE_LOW || midi > RANGE_HIGH) return true;
+    const base = this.options.getBase();
+    const midi = base + 12 * this.shift + semitone;
+    const range = playableRange(base);
+    if (midi < range.low || midi > range.high) return true;
     this.heldNotes.set(code, midi);
     this.hub.press(sourceId(code), midi, this.options.getVelocity());
     return true;

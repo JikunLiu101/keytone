@@ -82,6 +82,9 @@ export const SAMPLE_HOSTS: {
   soundfontUrl?: (name: string) => string;
 } = {};
 
+/** Seconds a released grand-piano note takes to fade out (smplr's default is 0.5 s; spec §13.5). */
+export const PIANO_RELEASE_S = 1.2;
+
 /** Wrap a smplr instrument in the InstrumentBackend interface. */
 function fromSmplr(inst: Smplr): InstrumentBackend {
   return {
@@ -140,6 +143,7 @@ export const INSTRUMENTS: readonly InstrumentDef[] = [
       fromSmplr(
         new SplendidGrandPiano(context, {
           destination,
+          decayTime: PIANO_RELEASE_S,
           ...(SAMPLE_HOSTS.splendidGrandPiano ? { baseUrl: SAMPLE_HOSTS.splendidGrandPiano } : {}),
         }),
       ),

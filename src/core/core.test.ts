@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { NoteHub, type NoteEvent } from "./note-hub";
 import { KeyboardController } from "./keyboard-controller";
 import { DEFAULT_BINDINGS, type KeyBindings } from "./keymap";
-import { RANGE_HIGH, RANGE_LOW, noteName } from "./notes";
+import { BASE_MIDI, RANGE_HIGH, RANGE_LOW, noteName, octaveC, playableRange, rangeLabel } from "./notes";
+import { createDerived, createStore } from "./store";
+import { computerKeyLabels } from "../view/layout";
 
-function setup(bindings: KeyBindings = { ...DEFAULT_BINDINGS }) {
+function setup(bindings: KeyBindings = { ...DEFAULT_BINDINGS }, base: () => number = () => 48) {
   const hub = new NoteHub();
   const events: string[] = [];
   hub.onNote((e: NoteEvent) => events.push(`${e.type} ${noteName(e.midi)}`));
-  const keys = new KeyboardController(hub, { getBindings: () => bindings, getVelocity: () => 100 });
+  const keys = new KeyboardController(hub, { getBindings: () => bindings, getVelocity: () => 100, getBase: base });
   return { hub, keys, events };
 }
 
@@ -17,9 +19,74 @@ describe("notes", () => {
     expect(noteName(RANGE_LOW)).toBe("C1");
     expect(noteName(RANGE_HIGH)).toBe("E6");
   });
+
+  it("gives a playable range of 65 keys from Z two octaves down to / two octaves up, at every base", () => {
+    const names = [2, 3, 4, 5].map((o) => playableRange(octaveC(o))).map((r) => [noteName(r.low), noteName(r.high), r.high - r.low]);
+    expect(names).toEqual([
+      ["C0", "E5", 64],
+      ["C1", "E6", 64],
+      ["C2", "E7", 64],
+      ["C3", "E8", 64],
+    ]);
+  });
+});
+
+describe("rangeLabel", () => {
+  it("names the playable range at a base, for messages", () => {
+    expect(rangeLabel(octaveC(4))).toBe("C2–E7");
+    expect(rangeLabel(BASE_MIDI)).toBe("C1–E6");
+  });
+});
+
+describe("computerKeyLabels", () => {
+  it("labels the keys from the base and the octave shift", () => {
+    expect(computerKeyLabels(0, 60).get(60)).toBe("Z");
+    expect(computerKeyLabels(1, 60).get(72)).toBe("Z");
+  });
+});
+
+describe("createDerived", () => {
+  it("notifies once per change of the computed value, not on every source change", () => {
+    const a = createStore({ n: 1 });
+    const b = createStore({ on: false });
+    const derived = createDerived(() => (b.get().on ? a.get().n * 10 : 0), [a, b]);
+    let calls = 0;
+    derived.subscribe(() => calls++);
+    a.set({ n: 2 });
+    expect([derived.get(), calls]).toEqual([0, 0]);
+    b.set({ on: true });
+    expect([derived.get(), calls]).toEqual([20, 1]);
+    a.set({ n: 3 });
+    expect([derived.get(), calls]).toEqual([30, 2]);
+    b.set({ on: true });
+    expect(calls).toBe(2);
+  });
 });
 
 describe("KeyboardController", () => {
+  it("plays from the base", () => {
+    const { keys, events } = setup(undefined, () => 60);
+    keys.keyDown("KeyZ");
+    keys.keyDown("Slash");
+    expect(events).toEqual(["on C4", "on E5"]);
+  });
+
+  it("is not cut to the piano's range", () => {
+    const { keys, events } = setup(undefined, () => 72);
+    keys.keyDown("Quote");
+    keys.keyDown("Slash");
+    expect(events).toEqual(["on E8"]);
+  });
+
+  it("keeps a held note's pitch when the base changes", () => {
+    let base = 48;
+    const { keys, events } = setup(undefined, () => base);
+    keys.keyDown("KeyZ");
+    base = 60;
+    keys.keyUp("KeyZ");
+    expect(events).toEqual(["on C3", "off C3"]);
+  });
+
   it("maps the bottom row to C3–E4", () => {
     const { keys, events } = setup();
     for (const code of ["KeyZ", "KeyS", "KeyM", "Comma", "KeyL", "Period", "Semicolon", "Slash"]) {

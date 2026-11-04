@@ -1,6 +1,6 @@
 # Keytone — Product Spec
 
-> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Versions 4 (score layout, lyrics and editor, §11) and 5 (more instruments and a compact instrument picker, §12) implemented and deployed (2026-10-25). Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
+> Status: versions 1, 2 and 3 (scores, §10) implemented and deployed (2026-10-24). Versions 4 (score layout, lyrics and editor, §11) and 5 (more instruments and a compact instrument picker, §12) implemented and deployed (2026-10-25). Version 6 (base octave and a fuller piano, §13) is implemented, not yet deployed. Chinese version: [spec.zh-CN.md](spec.zh-CN.md).
 
 Keytone is a browser-only app that turns your computer keyboard into an electronic keyboard instrument with a small set of curated sounds.
 
@@ -619,3 +619,82 @@ Each step is shown, then committed after approval.
 2. The LCD picker and its list
 3. The fixed-width panel: rows rearranged; language switch keeps everything still
 4. Docs (READMEs, spec status)
+
+## 13. Version 6 Spec: Base octave and a fuller piano
+
+Agreed 2026-11-04.
+
+### 13.1 Why
+- The piano sounds dull. The main reason is register: unshifted `Z` and an undotted `1` are C3 (§3, §10.4), an octave below the usual jianpu convention, where an undotted `1` in 1=C is middle C (C4). Melodies written that way sit around C3, where a piano sounds muddy, more so on laptop speakers. The player's own scores ended up one or two octaves below common piano arrangements.
+- Songs want different registers. Written the natural way, 兰亭序 sounds right with `1` at C4, and Call of Silence with `1` at C5.
+- The player changes the register in the moment: when it doesn't sound good, when the pitch seems wrong, or to try another height. A score keeps the register it was last played at.
+- Two smaller causes, fixed here too:
+  - Every note is played at velocity 100, which is loud.
+  - A released note fades out in 0.5 s, so fast, typing-style playing sounds clipped.
+
+### 13.2 The base octave
+- The base octave is the C that unshifted `Z` plays. An undotted `1` in 1=C is the same note. The two always move together, so a score's notation and the keys that play it never change. What moves is the sound, and the on-screen keys that light up. Key hints, practice mode and the editor work as before.
+- Choices: C2, C3, C4, C5. The default is C4 (it was always C3).
+- Octave keys (Shift, `A`, `'`, or whatever they are rebound to) still shift ±1 or ±2 octaves from the base while held, as in §3.
+- Other keys work as before, counted from the base: in 1=G, `1` is the G above the base C (G4 when the base is C4).
+- The playable range moves with the base: from `Z` two octaves down to `/` two octaves up, always the same 65 keys.
+
+  | Base | Playable range |
+  |---|---|
+  | C2 | C0–E5 |
+  | C3 | C1–E6 (as before) |
+  | C4 | C2–E7 |
+  | C5 | C3–E8 |
+
+- The range is not cut to the piano's A0–C8 (builder's call). Because the range moves with the base, a score that fits at one base fits at every base: every note the editor accepts is on the keyboard, so practice and falling notes never meet a note that can't be played. The editor's range check (§10.3) stays the same in written terms.
+- The grand piano sounds across the whole range: smplr stretches its lowest and highest samples. Some other instruments' samples cover less (the mallets and the Wurlitzer, for example), and their keys outside it stay silent, as the mallets' lowest keys already do today. The range does not change with the instrument (builder's call).
+- The on-screen keyboard shows the playable range, so it changes with the base. The note names under the keys follow (`Z` is labelled C4 at base C4). Light bars and falling notes follow the keyboard.
+- Notes already held when the base changes keep their pitch until they are released. New presses use the new base.
+
+### 13.3 Global, and per score
+- With the score view off (free play), the base is the global setting, saved with the settings. It defaults to C4.
+- With a score shown (jianpu or falling), the base is that score's own, or the global one if it has none. Changing the base while a score is shown changes that score's base, and it is kept for next time.
+- A score has no base of its own until the player changes the base while it is shown, or sets one in the editor.
+- The player's scores keep their base in the score itself:
+  - Text format: an optional header line `octave: 4`, the octave number of the base C. With no such line, the score follows the global base.
+  - Editor: a field next to "Pickup", labelled "Register" (zh 音区), with the choices "Default" (follow the global base), C2, C3, C4 and C5.
+  - Export, import and Duplicate keep it.
+- Built-in scores can't be changed. A base chosen while one is shown is remembered in the settings, per built-in score, and works the same way.
+- Turning the score view on or off, or switching to another score, moves the keyboard to the base that now applies, at once.
+- While the editor is open, the edited score's base applies (its own, or the global one), whatever the score view: auditioned notes and the keyboard below use it (builder's call). The editor's Register field changes it.
+
+### 13.4 Changing it
+- On the keyboard body, left of the LCD (where the left speaker grille is now), two small keys ▼ and ▲ step the base down and up. They are styled like the instrument picker's ▲ / ▼, like the octave buttons on a hardware MIDI keyboard. At C2, ▼ does nothing; at C5, ▲ does nothing.
+- Shortcuts: `9` lowers the base, `0` raises it. They sit next to `-` / `=` (volume) and follow the same rules as other single-key shortcuts (not while typing, not while a dialog or the instrument list is open). In the editor, digits enter notes (`0` is a rest), so there the Register field is the way to change it.
+- The keyboard LCD's second line shows the base before the momentary shift, for example `C4 · Octave +1 · Sustain` (zh `C4 · 八度 +1 · 延音`).
+- A toast confirms each change: "Register C4" (zh "音区 C4"). While a score is shown, it also names the score, so it is clear the change is kept with that song.
+- The control panel doesn't change. Its octave readout keeps showing the momentary shift.
+- Wherever the app lists shortcuts, `9` / `0` are added.
+- Phones show no ▼ ▲: they have no computer keyboard, and their keyboard body slides sideways. Phones use the global base and each score's base as set elsewhere.
+
+### 13.5 A fuller piano
+- Grand piano: a released note fades over about 1.2 s instead of 0.5 s (smplr's `decayTime`). Other instruments don't change.
+- The default velocity becomes 80 (it was 100). Settings saved before keep their value, with no migration. The app saves its settings the first time it runs, so everyone who has opened it, the player included, already has 100 stored; only new visitors start at 80. The player moves their own slider.
+- For reference, smplr's grand piano samples are in five velocity layers: 1–40 PPP (with a 1 kHz low-pass), 41–67 PP, 68–84 MP, 85–100 MF and 101–127 FF. Velocity 80 plays the MP layer.
+
+### 13.6 Existing scores and settings
+- Scores without `octave:`, the built-ins among them, follow the global base, now C4 by default, so they sound an octave higher than before. This is intended: the player's scores were written for C3 and sound low there.
+- Settings saved before version 6 have no base. They get C4.
+
+### 13.7 What this replaces
+- §3: "There is no persistent base-octave control. `Z` is always C3" no longer holds; `Z` plays the base. The key table in §3 is at base C3; read it one octave higher at the default C4.
+- §3 and §5: the keyboard's C1–E6 range now follows the base (§13.2).
+- §4: the default velocity is 80.
+- §10.3: notes are refused outside the playable range at the current base, not outside C1–E6.
+- §10.4: unshifted 1–7 in 1=C map to the Z–M row at the base octave, not C3–B3.
+
+### 13.8 Not in this version
+Velocity that varies from note to note, a left-hand part, better piano samples, string resonance, changing the base on phones, transposing by semitones.
+
+### 13.9 Order
+Each step is shown, then committed after approval.
+1. The base octave in core: keys, score pitches, key hints, playable range and the on-screen keyboard follow a base from the settings (global only)
+2. Per-score bases: the `octave:` line, the editor field, built-in scores, switching between scores and views
+3. Changing it: ▼ ▲ on the keyboard, `9` / `0`, the LCD readout, toasts
+4. Piano release and default velocity
+5. Docs (READMEs, spec status)

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addScore,
   duplicateScore,
+  exportScore,
   listScores,
   removeScore,
   resolveScore,
@@ -29,6 +30,23 @@ describe("library", () => {
     expect([resolveScore(a, "en").title, resolveScore(b, "en").title]).toEqual(["Untitled", "Untitled 2"]);
     removeScore(a);
     removeScore(b);
+  });
+
+  it("keeps a score's own base octave when duplicating, and gives a built-in's copy the one passed", () => {
+    const mine = addScore("title: Mine\noctave: 3\n---\n1");
+    const copy = duplicateScore(mine, "en");
+    expect(resolveScore(copy, "en").score.octave).toBe(3);
+    const twinkle = duplicateScore("builtin:twinkle", "en", 5);
+    expect(resolveScore(twinkle, "en").score.octave).toBe(5);
+    for (const id of [mine, copy, twinkle]) removeScore(id);
+  });
+
+  it("exports a score as text, giving a built-in the base remembered for it", () => {
+    expect(exportScore("builtin:twinkle", "en", 3)).toMatch(/^octave: 3$/m);
+    expect(exportScore("builtin:twinkle", "en", null)).not.toContain("octave:");
+    const mine = addScore("title: Mine\noctave: 5\n---\n1");
+    expect(exportScore(mine, "en")).toMatch(/^octave: 5$/m);
+    removeScore(mine);
   });
 
   it("duplicates a built-in into an editable copy", () => {

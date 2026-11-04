@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { engine, hub, settings } from "../app/services";
+import { baseOctave, baseShift, editorOpen, engine, hub, settings } from "../app/services";
 import { createAuditioner } from "../core/audition";
 import { OCTAVE_ACTION_SHIFT, actionForCode, codeLabel } from "../core/keymap";
-import { MAX_OCTAVE_SHIFT } from "../core/notes";
+import { BASE_OCTAVES, MAX_OCTAVE_SHIFT, noteName, octaveC, rangeLabel } from "../core/notes";
+import { ownOctave } from "../app/base-octave";
 import { fromInputMethod, isTyping } from "../input/keyboard-input";
 import { useSettings, useT } from "../i18n/useT";
 import { DEFAULT_SCORE_ID } from "../score/builtin-scores";
@@ -23,6 +24,7 @@ import { fitBeats, layoutLines, sameSheetBox, sheetMetrics, type SheetBox, type 
 import {
   addScore,
   duplicateScore,
+  exportScore,
   listScores,
   removeScore,
   uniqueTitle,
@@ -115,7 +117,7 @@ function pickCursor(target: EventTarget | null, clientX: number, clientY: number
  */
 export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const t = useT();
-  const { language, bindings, scoreKeyHints, beatsPerLine } = useSettings();
+  const { language, bindings, scoreKeyHints, beatsPerLine, builtinOctaves } = useSettings();
   const resolved = useCurrentScore();
   const readOnly = resolved.builtin;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -157,6 +159,12 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => rootRef.current?.focus(), []);
+
+  // While the editor is open, its score's base applies whatever the score view (spec §13.3).
+  useEffect(() => {
+    editorOpen.set({ open: true });
+    return () => editorOpen.set({ open: false });
+  }, []);
 
   const flash = (text: string) => showToast(text, "warn");
 
@@ -214,11 +222,13 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     }
     const current = stateRef.current;
     const result = edit(current, action);
-    if (result.rejected) flash(t("editor.outOfRange"));
+    // The range as the keyboard below shows it, at the base that applies (spec §13.7).
+    if (result.rejected) flash(t("editor.outOfRange").replace("{range}", rangeLabel(octaveC(baseOctave.get()))));
     if (result.state !== current) commit(result.state, historyGroup(action));
     if (result.audition) {
       engine.unlock();
-      audition(result.audition);
+      // Notes are written at C3; they sound at the base that applies.
+      audition(result.audition.map((m) => m + baseShift()));
     }
     return result;
   };
@@ -324,7 +334,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
       // An out-of-range or read-only paste already said so; never claim a paste that didn't happen.
       if (notice === "skipped") {
         const [first] = errors;
-        flash(`${t("editor.pasteSkipped")} ${t(`parse.${first.code}`).replace("{x}", first.detail ?? "")}`);
+        const reason = t(`parse.${first.code}`).replace("{x}", first.detail ?? "").replace("{range}", rangeLabel(octaveC(baseOctave.get())));
+        flash(`${t("editor.pasteSkipped")} ${reason}`);
       }
     };
     // Safari only sends copy, cut and paste events to a page with no text
@@ -451,7 +462,18 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
   const select = (id: string) => settings.set({ scoreId: id, scoreView: settings.get().scoreView === "off" ? "jianpu" : settings.get().scoreView });
 
   const onNew = () => select(addScore(serializeScore(emptyScore(uniqueTitle(untitled(language), language)))));
-  const onDuplicate = () => select(duplicateScore(resolved.id, language));
+  // A built-in's copy takes the base remembered for it (spec §13.3).
+  const onDuplicate = () => select(duplicateScore(resolved.id, language, ownOctave(settings.get(), resolved)));
+
+  // Register: 0 stands for "Default" (follow the global base). A built-in can't
+  // change, so its choice is kept in the settings; a user score keeps its own.
+  const register = (readOnly ? builtinOctaves[resolved.id] : state.score.octave) ?? 0;
+  const setRegister = (value: number) => {
+    const octave = value === 0 ? null : value;
+    if (!readOnly) return setMeta({ octave });
+    const { [resolved.id]: _dropped, ...rest } = settings.get().builtinOctaves;
+    settings.set({ builtinOctaves: octave === null ? rest : { ...rest, [resolved.id]: octave } });
+  };
   // Deleting asks inside the editor: browsers can silently block confirm() pop-ups.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   useEffect(() => setConfirmingDelete(false), [resolved.id]);
@@ -460,7 +482,8 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
     removeScore(resolved.id);
     select(DEFAULT_SCORE_ID);
   };
-  const onExport = () => download(safeFilename(resolved.title), serializeScore({ ...state.score, title: resolved.title }));
+  // Like Duplicate, an export keeps a built-in's remembered base (spec §13.3).
+  const onExport = () => download(safeFilename(resolved.title), exportScore(resolved.id, language, ownOctave(settings.get(), resolved)));
   const onImport = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -622,6 +645,18 @@ export function ScoreEditor({ onClose }: { onClose: () => void }) {
               value: b,
               label: b === 0 ? t("editor.pickupNone") : t("editor.pickupBeats").replace("{n}", String(b)),
             }))}
+          />
+        </label>
+        <label className="field" title={t("editor.registerHelp")}>
+          <span className="control-label">{t("editor.fieldRegister")}</span>
+          <Select
+            label={t("editor.fieldRegister")}
+            value={register}
+            onChange={setRegister}
+            options={[
+              { value: 0, label: t("editor.registerDefault") },
+              ...BASE_OCTAVES.map((n) => ({ value: n, label: noteName(octaveC(n)) })),
+            ]}
           />
         </label>
       </div>

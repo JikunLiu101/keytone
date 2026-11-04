@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { bindingError, defaultSettings, sanitize, withBinding } from "./settings";
 import { detectLanguage } from "../i18n/strings";
 import { DEFAULT_BINDINGS, NOTE_KEYS } from "../core/keymap";
-import { SHORTCUT_CODES } from "../core/shortcuts";
+import { SHORTCUTS, SHORTCUT_CODES } from "../core/shortcuts";
 
 describe("detectLanguage", () => {
   it("picks Chinese for zh locales and English otherwise", () => {
@@ -145,5 +145,41 @@ describe("±2 octave defaults and shortcuts", () => {
       expect(NOTE_KEYS[code]).toBeUndefined();
       expect(Object.values(DEFAULT_BINDINGS)).not.toContain(code);
     }
+  });
+});
+
+describe("base octave (spec §13)", () => {
+  const defaults = defaultSettings("en");
+
+  it("defaults to C4 with no built-in bases", () => {
+    expect(defaults.baseOctave).toBe(4);
+    expect(defaults.builtinOctaves).toEqual({});
+  });
+
+  it("gives settings saved before version 6 C4, and keeps a valid base", () => {
+    expect(sanitize({}, defaults).baseOctave).toBe(4);
+    expect(sanitize({ baseOctave: 2 }, defaults).baseOctave).toBe(2);
+    expect(sanitize({ baseOctave: 7 }, defaults).baseOctave).toBe(4);
+    expect(sanitize({ baseOctave: "5" }, defaults).baseOctave).toBe(4);
+  });
+
+  it("keeps built-in bases only for known built-ins with valid octaves", () => {
+    const raw = { builtinOctaves: { "builtin:twinkle": 5, "builtin:nope": 3, "builtin:birthday": 9 } };
+    expect(sanitize(raw, defaults).builtinOctaves).toEqual({ "builtin:twinkle": 5 });
+  });
+
+  it("reserves 9 and 0 for the base octave shortcuts", () => {
+    expect(bindingError("Digit9")).toBe("shortcut");
+    expect(bindingError("Digit0")).toBe("shortcut");
+    expect(sanitize({ bindings: { sustain: "Digit0" } }, defaults).bindings.sustain).toBe(DEFAULT_BINDINGS.sustain);
+    expect(SHORTCUTS).toContainEqual({ keys: ["9", "0"], label: "sc.register" });
+  });
+});
+
+describe("velocity (spec §13.5)", () => {
+  it("defaults to 80, and keeps a saved velocity", () => {
+    const defaults = defaultSettings("en");
+    expect(defaults.velocity).toBe(80);
+    expect(sanitize({ velocity: 100 }, defaults).velocity).toBe(100);
   });
 });

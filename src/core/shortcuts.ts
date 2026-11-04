@@ -24,6 +24,7 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { keys: ["PageUp", "PageDown"], label: "sc.page" },
   { keys: ["[", "]"], label: "sc.instrument" },
   { keys: ["-", "="], label: "sc.volume" },
+  { keys: ["9", "0"], label: "sc.register" },
   { keys: ["E"], label: "sc.editor" },
   { keys: ["Ctrl", "S"], label: "sc.save" },
   { keys: ["Esc"], label: "sc.escape" },
@@ -50,6 +51,8 @@ export const SHORTCUT_CODES: ReadonlySet<string> = new Set([
   "BracketRight",
   "Minus",
   "Equal",
+  "Digit9",
+  "Digit0",
 ]);
 
 /** How long Backspace must be held to restart the whole score. */

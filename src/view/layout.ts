@@ -3,7 +3,7 @@
  * view (CSS today, Canvas or Three.js later) can scale it to its own space.
  */
 import { NOTE_KEYS, codeLabel } from "../core/keymap";
-import { BASE_MIDI, isBlackKey, noteName } from "../core/notes";
+import { isBlackKey, noteName } from "../core/notes";
 
 export interface KeyGeometry {
   midi: number;
@@ -40,12 +40,12 @@ export function buildLayout(low: number, high: number): KeyboardLayout {
   return { keys, whiteCount: whiteIndex };
 }
 
-/** midi → computer-key label for the given octave shift, e.g. 48 → "Z" at shift 0. */
-export function computerKeyLabels(octaveShift: number): Map<number, string> {
+/** midi → computer-key label for base C `base` and the octave shift, e.g. 60 → "Z" at base C4, shift 0. */
+export function computerKeyLabels(octaveShift: number, base: number): Map<number, string> {
   const labels = new Map<number, string>();
-  const base = BASE_MIDI + 12 * octaveShift;
+  const from = base + 12 * octaveShift;
   for (const [code, semitone] of Object.entries(NOTE_KEYS)) {
-    labels.set(base + semitone, codeLabel(code));
+    labels.set(from + semitone, codeLabel(code));
   }
   return labels;
 }
